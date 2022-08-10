@@ -1,0 +1,45 @@
+---
+title: "OJS"
+format:
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r include=F}
+# format:html:code-fold: true
+```
+
+```{r include=F}
+df <- data.frame(
+  year = 1961:1990,
+  value = runif(30, -10, 20) |> cumsum()
+  )
+
+df$updown <- df$value |> diff() |> c(0, "nn" = _) |> sign()
+
+ojs_define(df = df)
+
+```
+
+```{ojs}
+//| echo: false
+
+
+ojs_df = transpose(df)
+
+ojs_df_filtered = ojs_df.filter(function(ojs_df) {
+  return ojs_df.year >= yr_filter
+})
+
+viewof yr_filter = Inputs.range(
+  [1960, 1990], 
+  {value: 1970, step: 1, label: "Year filter:"}
+)
+
+Plot.plot({
+  marks: [
+    Plot.line(ojs_df_filtered, {x: "year", y: "value"})
+  ]
+})
+```

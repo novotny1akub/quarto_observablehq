@@ -1,0 +1,37 @@
+---
+title: "Not-Shiny Geyser eruption duration"
+format:
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{ojs}
+//| echo: false
+d3 = require('d3')
+import {slider} from "@jashkenas/inputs"
+import {Histogram} from "@d3/histogram"
+
+
+viewof num_bins = slider({
+  min: 1,
+  max: 50,
+  value: 30,
+  step: 1,
+  title: "Number of bins:"
+})
+
+faithful = await d3.tsv(
+  'https://gist.githubusercontent.com/curran/4b59d1046d9e66f2787780ad51a1cd87/raw/9ec906b78a98cf300947a37b56cfe70d01183200/data.tsv'
+)
+
+chart = Histogram(faithful, {
+  value: d => d.waiting,
+  thresholds: num_bins,
+  label: "Waiting time to next eruption (in mins)",
+  width,
+  height: 500,
+  color: "steelblue"
+})
+
+```

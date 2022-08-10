@@ -1,0 +1,16 @@
+---
+title: "D3 test"
+format:
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{ojs}
+//| echo: false
+d3 = require("d3")
+import {Histogram} from "@d3/histogram"
+
+values = d3.range(1000).map(d3.randomNormal(0, 1))
+Histogram(values)
+```

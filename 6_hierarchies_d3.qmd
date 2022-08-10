@@ -1,0 +1,405 @@
+---
+title: Sales Dashboard Hierarchies
+format:
+  html:
+    self-contained: true
+    code-fold: true
+mode: visual
+---
+
+```{r include=F}
+library(tidyverse)
+library(jsonlite)
+library(lubridate)
+
+generate_data_f <- function(n_rw = 1000){
+  df_out <- df_counts <- data.frame(
+    l1 = paste("l1", sample(c(1:6), prob = c(.04, .09, .14, .19, .24, .30), replace = T, size = n_rw), sep = "_"),
+    l2 = paste("l2", sample(c(1:10), replace = T, size = n_rw), sep = "_"),
+    l3 = paste("l3", sample(c(1:20), replace = T, size = n_rw), sep = "_"),
+    l4 = paste("l4", sample(c(1:50), replace = T, size = n_rw), sep = "_"),
+    value = runif(min = 400, max = 600, n = n_rw)
+  ) %>%
+    group_by(l1, l2, l3, l4) %>%
+    summarise(.groups = "drop", value = sum(value)) %>% ungroup()
+  
+  return(df_out)
+}
+
+data_to_json_f <- function(.df, first_run = NULL){
+  if(is.null(first_run)){
+    
+    .df <- .df %>%
+      ungroup() %>%
+      mutate(dummy_column = "h") %>%
+      select(dummy_column, everything()) %>%
+      setNames(names(.) %>% head(-1) %>% c("value"))
+    
+    cn <- names(.df)
+    cn_grp <- cn %>%
+      str_subset(tail(cn, 1), negate = T)
+    cn_grp_last <- tail(cn_grp, 1)
+    
+    df_out <- .df %>%
+      mutate(name = .df[[cn_grp_last]]) %>%
+      group_by_at(cn_grp) %>%
+      summarise(.groups = "drop", children = list(list("name" = name[1], "value" = value[1]))) %>%
+      select(-all_of(cn_grp_last))
+    
+  } else {
+    
+    cn <- names(.df)
+    cn_grp <- cn %>%
+      str_subset(tail(cn, 1), negate = T)
+    cn_grp_last <- tail(cn_grp, 1)
+    
+    df_out <- .df %>%
+      mutate(name = .df[[cn_grp_last]]) %>%
+      group_by_at(cn_grp) %>%
+      summarise(.groups = "drop", children = list(list("name" = name[1], "children" = children))) %>% 
+      select(-all_of(cn_grp_last))
+    
+  }
+  
+  
+  if(ncol(df_out) > 2) {
+    Recall(df_out, first_run = F)
+  } else {
+    json_out <- list("name" = df_out[[1]][1], "children" = df_out %>% pull(2) )
+    return(toJSON(json_out, auto_unbox = T))
+  }
+  
+}
+
+df <- generate_data_f()
+
+ojs_define(ojs_json = data_to_json_f(df))
+
+```
+
+```{ojs}
+//| echo: false
+//| # format:html:code-fold: true
+d3 = require("d3@6")
+format = d3.format(",d")
+data = JSON.parse(ojs_json)
+```
+
+::: {.panel-tabset}
+
+## Hierarchie Sunburst Chart
+
+```{ojs}
+
+partition_sc = data => {
+  const root = d3.hierarchy(data)
+      .sum(d => d.value)
+      .sort((a, b) => b.value - a.value);
+  return d3.partition()
+      .size([2 * Math.PI, root.height + 1])
+    (root);
+}
+
+// interpolateViridis interpolateRainbow
+color_sc = d3.scaleOrdinal(d3.quantize(d3.interpolateRainbow, data.children.length + 1))
+
+width_sc = 932
+
+radius_sc = width_sc / 6
+
+arc_sc = d3.arc()
+    .startAngle(d => d.x0)
+    .endAngle(d => d.x1)
+    .padAngle(d => Math.min((d.x1 - d.x0) / 2, 0.005))
+    .padRadius(radius_sc * 1.5)
+    .innerRadius(d => d.y0 * radius_sc)
+    .outerRadius(d => Math.max(d.y0 * radius_sc, d.y1 * radius_sc - 1))
+    
+    
+chart_sc = {
+  const root = partition_sc(data);
+
+  root.each(d => d.current = d);
+
+  const svg = d3.create("svg")
+      .attr("viewBox", [0, 0, width_sc, width_sc])
+      .style("font", "10px sans-serif");
+
+  const g = svg.append("g")
+      .attr("transform", `translate(${width_sc / 2},${width_sc / 2})`);
+
+  const path = g.append("g")
+    .selectAll("path")
+    .data(root.descendants().slice(1))
+    .join("path")
+      .attr("fill", d => { while (d.depth > 1) d = d.parent; return color_sc(d.data.name); })
+      .attr("fill-opacity", d => arcVisible(d.current) ? (d.children ? 0.6 : 0.4) : 0)
+      .attr("pointer-events", d => arcVisible(d.current) ? "auto" : "none")
+
+      .attr("d", d => arc_sc(d.current));
+
+  path.filter(d => d.children)
+      .style("cursor", "pointer")
+      .on("click", clicked);
+
+  path.append("title")
+      .text(d => `${d.ancestors().map(d => d.data.name).reverse().join("/")}\n${format(d.value)}`);
+
+  const label = g.append("g")
+      .attr("pointer-events", "none")
+      .attr("text-anchor", "middle")
+      .style("user-select", "none")
+    .selectAll("text")
+    .data(root.descendants().slice(1))
+    .join("text")
+      .attr("dy", "0.35em")
+      .attr("fill-opacity", d => +labelVisible(d.current))
+      .attr("transform", d => labelTransform(d.current))
+      .text(d => d.data.name);
+
+  const parent = g.append("circle")
+      .datum(root)
+      .attr("r", radius_sc)
+      .attr("fill", "none")
+      .attr("pointer-events", "all")
+      .on("click", clicked);
+
+  function clicked(event, p) {
+    parent.datum(p.parent || root);
+
+    root.each(d => d.target = {
+      x0: Math.max(0, Math.min(1, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,
+      x1: Math.max(0, Math.min(1, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,
+      y0: Math.max(0, d.y0 - p.depth),
+      y1: Math.max(0, d.y1 - p.depth)
+    });
+
+    const t = g.transition().duration(750);
+
+    // Transition the data on all arcs, even the ones that aren’t visible,
+    // so that if this transition is interrupted, entering arcs will start
+    // the next transition from the desired position.
+    path.transition(t)
+        .tween("data", d => {
+          const i = d3.interpolate(d.current, d.target);
+          return t => d.current = i(t);
+        })
+      .filter(function(d) {
+        return +this.getAttribute("fill-opacity") || arcVisible(d.target);
+      })
+        .attr("fill-opacity", d => arcVisible(d.target) ? (d.children ? 0.6 : 0.4) : 0)
+        .attr("pointer-events", d => arcVisible(d.target) ? "auto" : "none") 
+
+        .attrTween("d", d => () => arc_sc(d.current));
+
+    label.filter(function(d) {
+        return +this.getAttribute("fill-opacity") || labelVisible(d.target);
+      }).transition(t)
+        .attr("fill-opacity", d => +labelVisible(d.target))
+        .attrTween("transform", d => () => labelTransform(d.current));
+  }
+  
+  function arcVisible(d) {
+    return d.y1 <= 3 && d.y0 >= 1 && d.x1 > d.x0;
+  }
+
+  function labelVisible(d) {
+    return d.y1 <= 3 && d.y0 >= 1 && (d.y1 - d.y0) * (d.x1 - d.x0) > 0.03;
+  }
+
+  function labelTransform(d) {
+    const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+    const y = (d.y0 + d.y1) / 2 * radius_sc;
+    return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
+  }
+
+  return svg.node();
+}
+
+```
+
+## Hierarchie Top Down
+
+```{ojs}
+
+height_td = 1200
+width_td = 975
+
+color_td = d3.scaleOrdinal(d3.quantize(d3.interpolateRainbow, data.children.length + 1))
+
+partition_td = data => {
+  const root = d3.hierarchy(data)
+      .sum(d => d.value)
+      .sort((a, b) => b.height - a.height || b.value - a.value);  
+  return d3.partition()
+      .size([height_td, (root.height + 1) * width_td / 3])
+    (root);
+}
+
+
+
+chart_td = {
+  const root = partition_td(data);
+  let focus = root;
+
+  const svg = d3.create("svg")
+      .attr("viewBox", [0, 0, width_td, height_td])
+      .style("font", "10px sans-serif");
+
+  const cell = svg
+    .selectAll("g")
+    .data(root.descendants())
+    .join("g")
+      .attr("transform", d => `translate(${d.y0},${d.x0})`);
+
+  const rect = cell.append("rect")
+      .attr("width", d => d.y1 - d.y0 - 1)
+      .attr("height", d => rectHeight(d))
+      .attr("fill-opacity", 0.6)
+      .attr("fill", d => {
+        if (!d.depth) return "#ccc";
+        while (d.depth > 1) d = d.parent;
+        return color_td(d.data.name);
+      })
+      .style("cursor", "pointer")
+      .on("click", clicked);
+
+  const text = cell.append("text")
+      .style("user-select", "none")
+      .attr("pointer-events", "none")
+      .attr("x", 4)
+      .attr("y", 13)
+      .attr("fill-opacity", d => +labelVisible(d));
+
+  text.append("tspan")
+      .text(d => d.data.name);
+
+  const tspan = text.append("tspan")
+      .attr("fill-opacity", d => labelVisible(d) * 0.7)
+      .text(d => ` ${format(d.value)}`);
+
+  cell.append("title")
+      .text(d => `${d.ancestors().map(d => d.data.name).reverse().join("/")}\n${format(d.value)}`);
+
+  function clicked(event, p) {
+    focus = focus === p ? p = p.parent : p;
+
+    root.each(d => d.target = {
+      x0: (d.x0 - p.x0) / (p.x1 - p.x0) * height_td,
+      x1: (d.x1 - p.x0) / (p.x1 - p.x0) * height_td,
+      y0: d.y0 - p.y0,
+      y1: d.y1 - p.y0
+    });
+
+    const t = cell.transition().duration(750)
+        .attr("transform", d => `translate(${d.target.y0},${d.target.x0})`);
+
+    rect.transition(t).attr("height", d => rectHeight(d.target));
+    text.transition(t).attr("fill-opacity", d => +labelVisible(d.target));
+    tspan.transition(t).attr("fill-opacity", d => labelVisible(d.target) * 0.7);
+  }
+  
+  function rectHeight(d) {
+    return d.x1 - d.x0 - Math.min(1, (d.x1 - d.x0) / 2);
+  }
+
+  function labelVisible(d) {
+    return d.y1 <= width_td && d.y0 >= 0 && d.x1 - d.x0 > 16;
+  }
+  
+  return svg.node();
+}
+
+```
+
+## Hierarchie Circle Packing
+
+```{ojs}
+chart_cp = {
+  const root = pack_cp(data);
+  let focus = root;
+  let view;
+
+  const svg = d3.create("svg")
+      .attr("viewBox", `-${width_cp / 2} -${height_cp / 2} ${width_cp} ${height_cp}`)
+      .style("display", "block")
+      .style("margin", "0 -14px")
+      .style("background", color_cp(0))
+      .style("cursor", "pointer")
+      .on("click", (event) => zoom(event, root));
+
+  const node = svg.append("g")
+    .selectAll("circle")
+    .data(root.descendants().slice(1))
+    .join("circle")
+      .attr("fill", d => d.children ? color_cp(d.depth) : "white")
+      .attr("pointer-events", d => !d.children ? "none" : null)
+      .on("mouseover", function() { d3.select(this).attr("stroke", "#000"); })
+      .on("mouseout", function() { d3.select(this).attr("stroke", null); })
+      .on("click", (event, d) => focus !== d && (zoom(event, d), event.stopPropagation()));
+
+  const label = svg.append("g")
+      .style("font", "10px sans-serif")
+      .attr("pointer-events", "none")
+      .attr("text-anchor", "middle")
+    .selectAll("text")
+    .data(root.descendants())
+    .join("text")
+      .style("fill-opacity", d => d.parent === root ? 1 : 0)
+      .style("display", d => d.parent === root ? "inline" : "none")
+      .text(d => d.data.name);
+
+  zoomTo([root.x, root.y, root.r * 2]);
+
+  function zoomTo(v) {
+    const k = width_cp / v[2];
+
+    view = v;
+
+    label.attr("transform", d => `translate(${(d.x - v[0]) * k},${(d.y - v[1]) * k})`);
+    node.attr("transform", d => `translate(${(d.x - v[0]) * k},${(d.y - v[1]) * k})`);
+    node.attr("r", d => d.r * k);
+  }
+
+  function zoom(event, d) {
+    const focus0 = focus;
+
+    focus = d;
+
+    const transition = svg.transition()
+        .duration(event.altKey ? 7500 : 750)
+        .tween("zoom", d => {
+          const i = d3.interpolateZoom(view, [focus.x, focus.y, focus.r * 2]);
+          return t => zoomTo(i(t));
+        });
+
+    label
+      .filter(function(d) { return d.parent === focus || this.style.display === "inline"; })
+      .transition(transition)
+        .style("fill-opacity", d => d.parent === focus ? 1 : 0)
+        .on("start", function(d) { if (d.parent === focus) this.style.display = "inline"; })
+        .on("end", function(d) { if (d.parent !== focus) this.style.display = "none"; });
+  }
+
+  return svg.node();
+}
+
+pack_cp = data => d3.pack()
+    .size([width_cp, height_cp])
+    .padding(3)
+  (d3.hierarchy(data)
+    .sum(d => d.value)
+    .sort((a, b) => b.value - a.value))
+    
+width_cp = 932
+height_cp = width_cp
+
+color_cp = d3.scaleLinear()
+    .domain([0, 5])
+    .range(["hsl(152,80%,80%)", "hsl(228,30%,40%)"])
+    .interpolate(d3.interpolateHcl)
+    
+
+```
+
+:::

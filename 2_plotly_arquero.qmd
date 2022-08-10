@@ -1,0 +1,73 @@
+---
+title: "OJS with plotly"
+format:
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r include=F}
+df <- data.frame(
+  year = 1961:1990,
+  value = runif(30, -10, 20) |> cumsum()
+  )
+
+df$updown <- df$value |> diff() |> c(0, "nn" = _) |> sign()
+
+ojs_define(df = df)
+
+```
+
+```{ojs}
+//| echo: false
+
+Plotly = require("https://cdn.plot.ly/plotly-latest.min.js")
+import { aq } from '@uwdata/arquero';
+
+ojs_df = transpose(df)
+
+ojs_df_filtered = ojs_df.filter(function(ojs_df) {
+  return ojs_df.year >= yr_filter
+})
+
+viewof yr_filter = Inputs.range(
+  [1960, 1990], 
+  {value: 1970, step: 1, label: "Year filter:"}
+)
+
+
+plotly_df = aq.from(ojs_df_filtered)
+  .filter(d => d.year >= 1964)
+  .orderby(aq.desc('year'))
+  .derive({ value2: d => d.value*2 })
+  .select('year', 'value', 'value2')
+
+
+pltPlotly(
+  plotly_df.array('year'),
+  plotly_df.array('value'),
+  plotly_df.array('value2')
+  )
+
+function pltPlotly(year, value, value2){
+  var trace1 = {
+    x: year,
+    y: value,
+    mode: 'line'
+    
+  };
+  
+  var trace2 = {
+    x: year,
+    y: value2,
+    mode: 'line'
+  };
+
+  var data = [trace1, trace2];
+  
+  const div = DOM.element('div');
+  Plotly.newPlot(div, data, {width: width});
+  return div;
+}
+
+```

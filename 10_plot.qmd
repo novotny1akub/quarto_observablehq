@@ -1,0 +1,409 @@
+---
+title: "OJS Plot library"
+format:
+  html:
+    self-contained: true
+editor: visual
+---
+
+# **Plot: Intro**
+
+Example of Plot: a scatterplot of the height and weight of Olympic athletes, color done using stroke, fill would also work
+
+```{ojs}
+
+import {athletes} from '@observablehq/plot'
+
+dotplot = Plot.dot(athletes, {x: "weight", y: "height", stroke: "sex"}).plot()
+dotplot.legend("color")
+
+```
+
+Plot overplotted --\> binning as a solution
+
+```{ojs}
+Plot.rect(athletes, Plot.bin({fillOpacity: "count"}, {x: "weight", y: "height", fill: "sex"})).plot()
+```
+
+Focus on one dimension: weight
+
+```{ojs}
+Plot.rectY(athletes, Plot.binX({y: "count"}, {x: "weight", fill: "sex"})).plot()
+```
+
+Focus on one dimension: faceting
+
+```{ojs}
+Plot.plot({
+  grid: true,
+  facet: {
+    data: athletes,
+    y: "sex"
+  },
+  marks: [
+    Plot.rectY(athletes, Plot.binX({y: "count"}, {x: "weight", fill: "sex"})),
+    Plot.ruleY([0])
+  ]
+})
+```
+
+# **Plot: Marks and Channels**
+
+Plot doesn't have chart types. Instead, it has marks: geometric shapes such as bars, dots, and lines. Yet unlike a conventional graphics system, Plot marks are not positioned in pixels or colored literally. You draw with abstract data!
+
+```{ojs}
+sales = [
+  {units: 10, fruit: "fig"},
+  {units: 20, fruit: "date"},
+  {units: 40, fruit: "plum"},
+  {units: 30, fruit: "plum"}
+]
+
+Plot.dot(sales, {x: "units", y: "fruit"}).plot()
+
+```
+
+for greater flexibility we can use a function to feed abstract values to a channel. Channel functions are repeatedly invoked for each element in the data, being passed the datum (by convention *d*) and zero-based index (*i*). These functions can also perform data processing; for example, perhaps *units* is in thousands
+
+```{ojs}
+Plot.dot(sales, {x: d => d.units * 1000, y: d => d.fruit}).plot()
+```
+
+adding lables
+
+```{ojs}
+Plot.dot(sales, {x: d => d.units, y: d => d.fruit}).plot({x: {label: "units →"}})
+```
+
+specifying channel values with the same length
+
+```{ojs}
+index = [0, 1, 2, 3] // any array of suitable length
+units = [10, 20, 40, 30] // x₁, x₂, …
+fruits = ["fig", "date", "plum", "plum"] // y₁, y₂, …
+
+Plot.dot(index, {x: units, y: fruits}).plot()
+```
+
+An alternative way for more concise shorthand (applicable tot only some of the Marks)
+
+```{ojs}
+xy = [
+  [10, "fig"], // x₁, y₁
+  [20, "date"], // x₂, y₂
+  [40, "plum"], // etc.
+  [30, "plum"]
+]
+Plot.dot(xy).plot()
+```
+
+Plots can have multiple marks, the last mark is drawn on top
+
+```{ojs}
+Plot.plot({
+  marks: [
+    Plot.dot([[10, "fig"]]), // x₁, y₁
+    Plot.dot([[20, "date"]]), // x₂, y₂
+    Plot.dot([[40, "plum"]]), // etc.
+    Plot.dot([[30, "plum"]])
+  ]
+})
+```
+
+Marks can also be used as annotations for values with special meaning
+
+```{ojs}
+Plot.plot({
+  marks: [
+    Plot.dot(sales, {x: "units", y: "fruit"}),
+    Plot.ruleX([0]) // a rule at x = 0
+  ]
+})
+```
+
+Plot currently supports about a dozen mark types: [Area](https://observablehq.com/@observablehq/plot-area?collection=@observablehq/plot), [Bar](https://observablehq.com/@observablehq/plot-bar?collection=@observablehq/plot), [Cell](https://observablehq.com/@observablehq/plot-cell?collection=@observablehq/plot), [Dot](https://observablehq.com/@observablehq/plot-dot?collection=@observablehq/plot), [Frame](https://observablehq.com/@observablehq/plot-frame?collection=@observablehq/plot), [Line](https://observablehq.com/@observablehq/plot-line?collection=@observablehq/plot), [Link](https://observablehq.com/@observablehq/plot-link?collection=@observablehq/plot), [Rect](https://observablehq.com/@observablehq/plot-rect?collection=@observablehq/plot), [Rule](https://observablehq.com/@observablehq/plot-rule?collection=@observablehq/plot), [Text](https://observablehq.com/@observablehq/plot-text?collection=@observablehq/plot), and [Tick](https://observablehq.com/@observablehq/plot-tick?collection=@observablehq/plot).
+
+```{ojs}
+Plot.barX(sales, {x: "units", y: "fruit"}).plot() // bars extends from x = 0
+```
+
+The fill option can be a channel or a valid CSS color name
+
+```{ojs}
+Plot.plot({
+  marks: [
+    Plot.barX(sales, {x: "units", y: "fruit", fill: "steelblue"}),
+    Plot.ruleX([0])
+  ]
+})
+
+Plot.plot({
+  marks: [
+    Plot.barX(sales, {x: "units", y: "fruit", fill: "fruit"}),
+    Plot.ruleX([0])
+  ]
+})
+```
+
+Defining the *fill* channel as a function
+
+```{ojs}
+Plot.plot({
+  marks: [
+    Plot.barX(sales, {x: "units", y: "fruit", fill: d => d.units > 20 ? "black" : "red"}),
+    Plot.ruleX([0])
+  ]
+})
+```
+
+However, instead of returning literal colors, you might prefer to return an abstract value and then set the scale's domain and range as desired. As a benefit, this allows Plot to generate a meaningful color legend.
+
+```{ojs}
+Plot.plot({
+  color: {
+    domain: ["small", "big"],
+    range: ["red", "black"],
+    legend: true
+  },
+  marks: [
+    Plot.barX(sales, {x: "units", y: "fruit", fill: d => d.units > 20 ? "big" : "small"}),
+    Plot.ruleX([0])
+  ]
+})
+```
+
+# **Plot: Scales**
+
+Scales map an abstract value such as time or temperature to a visual value such as *x*- or *y*-position or color. Scales define a plot's coordinate system. A scale is configured primarily by its input **domain** and output **range**: the domain is a set of abstract values typically derived from data, such as a time interval \[*start*, *end*\] or temperature interval \[*cold*, *hot*\]; the range is a set of visual values, such as an extent of the chart in pixels \[*left*, *right*\] or a color interval \[*blue*, *red*\].
+
+## Continuous scale
+
+```{ojs}
+Plot.plot({x: {domain: [0, 100]}, grid: true}) // continuous variable
+Plot.plot({x: {domain: [100, 0]}, grid: true}) // reverse order
+Plot.plot({x: {domain: [new Date("2021-01-01"), new Date("2022-01-01")]}, grid: true}) // dates
+Plot.plot({x: {type: "utc", domain: [1609459200000, 1640995200000]}, grid: true}) // dates as utc
+Plot.plot({x: {type: "time", domain: [new Date(2021, 0, 1), new Date(2022, 0, 1)]}, grid: true}) // local time because of type time
+Plot.plot({x: {type: "log", domain: [1e0, 1e5]}, grid: true}) // log10 scale
+Plot.plot({x: {type: "log", base: 2, domain: [1e0, 1e4], ticks: 20}, grid: true}) // log2 scale
+Plot.plot({x: {type: "symlog", domain: [-10, 10]}, grid: true}) // bisymmetric log scale (to include 0 and negative numbers)
+Plot.plot({x: {type: "sqrt", domain: [0, 100]}, grid: true}) // square root scale
+Plot.plot({x: {type: "pow", exponent: 1 / 3, domain: [0, 100]}, grid: true}) //
+```
+
+## Discrete scale
+
+some data is merely ordinal such as t-shirt sizes, and some categorical (*a.k.a.* nominal) such as brands of clothing. To encode such data as position, a point or band scale is required. A point scale divides space into uniformly-spaced discrete values. It is commonly used for scatterplots (dot marks) of ordinal data. It is the default scale type for ordinal data on the *x* and *y* scale.
+
+```{ojs}
+Plot.plot({x: {type: "point", domain: [..."ABCDEFGHIJ"]}, grid: true}) // type: "band" for barcharts
+```
+
+## **Continuous color**
+
+some built-in color scales
+
+```{ojs}
+viewof schemeq = Inputs.select(new Map([
+["Blues (sequential, single-hue)", "blues"],
+["Greens (sequential, single-hue)", "greens"],
+["Greys (sequential, single-hue)", "greys"],
+["Purples (sequential, single-hue)", "purples"],
+["Reds (sequential, single-hue)", "reds"],
+["Oranges (sequential, single-hue)", "oranges"],
+["Turbo (sequential, multi-hue)", "turbo"],
+["Viridis (sequential, multi-hue)", "viridis"],
+["Magma (sequential, multi-hue)", "magma"],
+["Inferno (sequential, multi-hue)", "inferno"],
+["Plasma (sequential, multi-hue)", "plasma"],
+["Cividis (sequential, multi-hue)", "cividis"],
+["Cubehelix (sequential, multi-hue)", "cubehelix"],
+["Warm (sequential, multi-hue)", "warm"],
+["Cool (sequential, multi-hue)", "cool"],
+["BuGn (sequential, multi-hue)", "bugn"],
+["BuPu (sequential, multi-hue)", "bupu"],
+["GnBu (sequential, multi-hue)", "gnbu"],
+["OrRd (sequential, multi-hue)", "orrd"],
+["PuBuGn (sequential, multi-hue)", "pubugn"],
+["PuBu (sequential, multi-hue)", "pubu"],
+["PuRd (sequential, multi-hue)", "purd"],
+["RdPu (sequential, multi-hue)", "rdpu"],
+["YlGnBu (sequential, multi-hue)", "ylgnbu"],
+["YlGn (sequential, multi-hue)", "ylgn"],
+["YlOrBr (sequential, multi-hue)", "ylorbr"],
+["YlOrRd (sequential, multi-hue)", "ylorrd"],
+["BrBG (diverging)", "brbg"],
+["PRGn (diverging)", "prgn"],
+["PiYG (diverging)", "piyg"],
+["PuOr (diverging)", "puor"],
+["RdBu (diverging)", "rdbu"],
+["RdGy (diverging)", "rdgy"],
+["RdYlBu (diverging)", "rdylbu"],
+["RdYlGn (diverging)", "rdylgn"],
+["Spectral (diverging)", "spectral"],
+["BuRd (diverging)", "burd"],
+["BuYlRd (diverging)", "buylrd"],
+["Rainbow (cyclical)", "rainbow"],
+["Sinebow (cylical)", "sinebow"]
+]), {label: "Color scheme", value: "turbo"})
+
+Plot.plot({
+  color: {
+    scheme: schemeq
+  },
+  marks: [
+    Plot.cell([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], {x: d => d, fill: d => d})
+  ]
+})
+```
+
+Custom scale
+
+```{ojs}
+Plot.plot({
+  color: {
+    type: "linear",
+    range: ["steelblue", "orange"] // uses d3.interpolateRgb
+  },
+  marks: [
+    Plot.cell([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], {x: d => d, fill: d => d})
+  ]
+})
+
+Plot.plot({
+  color: {
+    type: "linear",
+    range: ["steelblue", "orange"],
+    interpolate: "hcl" // uses d3.interpolateHcl
+  },
+  marks: [
+    Plot.cell([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], {x: d => d, fill: d => d})
+  ]
+})
+```
+
+scale provided manually
+
+```{ojs}
+html`${["log", "symlog", "sqrt", "linear"].map(type => html`<div style="position: relative;">
+  <div style="position: absolute; color: white; font: bold 13px/33px var(--sans-serif); padding: 0 38px;">${type}</div>${Plot.plot({
+  height: 33,
+  color: {
+    type
+  },
+  x: {
+    round: true,
+    padding: 0,
+    axis: null
+  },
+  marks: [
+    Plot.cellX({length: 64}, {x: (d, i) => i, fill: (d, i) => (i + 1)})
+  ]
+})}`)}`
+```
+
+diverging color scales (to show negative and positive numbers)
+
+```{ojs}
+Plot.plot({
+  color: {
+    type: "diverging"
+  },
+  marks: [
+    Plot.cell([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5], {x: d => d, fill: d => d})
+  ]
+})
+```
+
+example of diverging scales
+
+```{ojs}
+
+import {gistemp} from '@observablehq/plot-scales'
+
+Plot.plot({
+  grid: true,
+  color: {
+    type: "diverging",
+    scheme: "BuRd"
+  },
+  marks: [
+    Plot.ruleY([0]),
+    Plot.dot(gistemp, {x: "Date", y: "Anomaly", stroke: "Anomaly"})
+  ]
+})
+```
+
+## **Discrete color scale**
+
+```{ojs}
+viewof schemec = Inputs.select(new Map([
+["Accent (categorical, 8 colors)", "accent"],
+["Category10 (categorical, 10 colors)", "category10"],
+["Dark2 (categorical, 8 colors)", "dark2"],
+["Paired (categorical, 12 colors)", "paired"],
+["Pastel1 (categorical, 9 colors)", "pastel1"],
+["Pastel2 (categorical, 8 colors)", "pastel2"],
+["Set1 (categorical, 9 colors)", "set1"],
+["Set2 (categorical, 8 colors)", "set2"],
+["Set3 (categorical, 12 colors)", "set3"],
+["Tableau10 (categorical, 10 colors)", "tableau10"]
+]), {label: "Color scheme", value: "tableau10"})
+
+
+Plot.plot({
+  color: {
+    type: "categorical",
+    scheme: schemec
+  },
+  marks: [
+    Plot.cell([..."ABCDEFGHIJ"], {x: d => d, fill: d => d})
+  ]
+})
+```
+
+## **Continuous radius**
+
+size of the dot proportional to how large a value is, for dotmarks only
+
+```{ojs}
+
+viewof radius = Inputs.range([1, 20], {label: "Radius", step: 0.1, value: 8})
+
+Plot.plot({
+  r: {
+    range: [0, radius]
+  },
+  marks: [
+    Plot.dot([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], {x: d => d, r: d => d, fill: "black"})
+  ]
+})
+```
+
+## Inference
+
+Plot tries to guess the correct **type**, **domain**, and **range** (and for color, **scheme**)
+
+## Transforms
+
+The *scale*.**transform** option allows you to apply a function to all values before they are passed through the scale. This is convenient for transforming a scale's data, say to convert to thousands or between temperature units.
+
+```{ojs}
+
+import {sftemp} from '@observablehq/plot-scales'
+
+viewof celsius = Inputs.toggle({label: "Celsius"})
+
+Plot.plot({
+  y: {
+    grid: true,
+    label: `↑ Daily temperature range (°${celsius ? "C" : "F"})`,
+    transform: celsius ? f => (f - 32) * (5 / 9) : undefined // Fahrenheit to Celsius
+  },
+  marks: [
+    Plot.areaY(sftemp, {x: "date", y1: "low", y2: "high"})
+  ]
+})
+```
+
+## nasledovat bude transforms

@@ -1,0 +1,39 @@
+---
+title: "Multiple Filters"
+format:
+  html:
+    self-contained: true
+    code-fold: true
+---
+
+```{ojs}
+d3 = require("d3@6")
+
+// dummy data
+cars = d3.csvParse(`name,cyl,mpg
+car1,2,21.4
+car2,4,18
+car2,6,54
+car3,2,18.6
+`)
+
+// filter for the car name
+viewof name_filter = Inputs.select(
+  cars.map(d => d.name),
+  {value: [...new Set(cars.map(d => d.name))],
+  label: "Car Name", multiple: true, sort: true, unique: true}
+  )
+
+// filter for the number of cylinders
+viewof cyl_filter = Inputs.select(
+  cars.map(d => d.cyl),
+  {value: [...new Set(cars.map(d => d.cyl))],
+  label: "Number of Cylinders", multiple: true, sort: true, unique: true}
+  )
+
+// applying the filters above
+cars_filtered = cars.filter(d => name_filter.indexOf(d.name) >= 0 && cyl_filter.indexOf(d.cyl) >= 0)
+
+Inputs.table(cars_filtered)
+
+```

@@ -1,0 +1,29 @@
+---
+title: Test
+format:
+  html:
+    self-contained: true
+    code-fold: true
+    page-layout: custom
+---
+
+::: {.grid}
+::: {.g-col-12}
+
+```{ojs}
+//| panel: input
+//| layout-ncol: 3
+
+viewof color1 = Inputs.checkbox(["red", "green", "blue"], {label:     "color1"})
+
+viewof color2 = Inputs.radio(["red", "green", "blue"], {label:     "color2"})
+
+viewof rng = Inputs.range(
+  [1,10],{
+  value: 3,
+  step: 1
+})
+
+```
+:::
+:::

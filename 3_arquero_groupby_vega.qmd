@@ -1,0 +1,53 @@
+---
+title: "OJS arquero group by"
+format:
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{ojs}
+//| echo: false
+
+// https://observablehq.com/@slopp/observable-for-r-users
+
+import {aq, op} from '@uwdata/arquero'
+vg = require('vega-lite')
+import { vl } from "@vega/vega-lite-api"
+
+penguins = await aq.loadCSV(
+  'https://gist.githubusercontent.com/slopp/ce3b90b9168f2f921784de84fa445651/raw/4ecf3041f0ed4913e7c230758733948bc561f434/penguins.csv'
+)
+
+
+```
+
+```{ojs}
+//| echo: false
+
+penguins
+  .groupby('species')
+  .filter(p => p.body_mass_g > 0)
+  .rollup({
+    count: op.count(),
+    avg_mass_g: op.average('body_mass_g')
+   })
+  .view()
+```
+
+```{ojs}
+//| echo: false
+
+vl
+  .markPoint()                       // the first two lines are akin to ggplot(data = penguins) + geom_point
+  .data(penguins)
+  .encode(                               // encode is like aes
+    vl.x().fieldQ('body_mass_g')         // aes(x = body_mass_g)
+          .scale({domain: [2000, 6500]}) // modify scale attributes, similar to scale_x_axis
+          .axis({title: "Mass (g)"}),
+    vl.y().fieldQ('bill_length_mm')     
+          .scale({domain: [30, 60]}),
+    vl.color().fieldN('species'),
+    vl.tooltip(['species', 'sex', 'year', 'island'])  // tooltips for free!
+).render()
+```

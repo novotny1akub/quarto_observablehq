@@ -1,0 +1,62 @@
+---
+title: "Arquero and Input filters"
+format:
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{ojs}
+//| echo: false
+
+import { aq, op } from '@uwdata/arquero'
+
+// some dummy input data
+table_in = aq.table({
+  col1: ['cat1', 'cat2', 'cat1', 'cat2', 'cat1', 'cat2'],
+  col2: ['a', 'a', 'b', 'c', 'd', 'e'],
+  col3: [3, 0, 4, 5, 8, 9] })
+
+// first filter, this filter affets the filter for col2
+viewof filter_col1 = Inputs.select(
+  table_in.columnArray("col1"),
+  {
+    value: [...new Set(table_in.columnArray("col1"))],
+    multiple: true, unique: true, label: "col1 filter"
+  }
+)
+// arquero table used for filtering later on
+filter_tbl_col1 = aq.table({ col1: filter_col1})
+
+
+// filtering the input data to get the values for col2
+// the data is filtered based on the filter_col1 selection
+vals_filter_col2 = table_in
+  .semijoin(filter_tbl_col1)
+  .columnArray("col2")
+viewof filter_col2 = Inputs.select(
+  vals_filter_col2,
+  {
+    value: [...new Set(vals_filter_col2)],
+    multiple: true, unique: true, label: "col2 filter"
+  }
+)
+// aq table ffor filtering
+filter_tbl_col2 = aq.table({ col2: filter_col2})
+
+// a numerical filter
+viewof filter_col3 = Inputs.range(
+  [Math.min(...table_in.columnArray("col3")),
+  Math.max(...table_in.columnArray("col3"))],
+  {step: 1, label: "col3 filter", value: 0}
+  )
+
+
+// filtering the input data based on the filters above
+table_out = table_in
+  .semijoin(filter_tbl_col2)
+  .filter(aq.escape(d => d.col3 >= filter_col3))
+  
+Inputs.table(table_out)
+
+```
