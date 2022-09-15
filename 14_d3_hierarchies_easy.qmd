@@ -1,0 +1,113 @@
+---
+title: D3 Hierarchies easy
+format:
+  html:
+    self-contained: true
+mode: visual
+---
+
+```{r include=F}
+library(tidyverse)
+library(jsonlite)
+library(lubridate)
+
+generate_data_f <- function(n_rw = 1000){
+  df_out <- df_counts <- data.frame(
+    l1 = paste("l1", sample(c(1:6), prob = c(.04, .09, .14, .19, .24, .30), replace = T, size = n_rw), sep = "_"),
+    l2 = paste("l2", sample(c(1:10), replace = T, size = n_rw), sep = "_"),
+    l3 = paste("l3", sample(c(1:20), replace = T, size = n_rw), sep = "_"),
+    l4 = paste("l4", sample(c(1:50), replace = T, size = n_rw), sep = "_"),
+    value = runif(min = 400, max = 600, n = n_rw)
+  ) %>%
+    group_by(l1, l2, l3, l4) %>%
+    summarise(.groups = "drop", value = sum(value)) %>% ungroup()
+  
+  return(df_out)
+}
+
+data_to_json_f <- function(.df, first_run = NULL){
+  if(is.null(first_run)){
+    
+    .df <- .df %>%
+      ungroup() %>%
+      mutate(dummy_column = "h") %>%
+      select(dummy_column, everything()) %>%
+      setNames(names(.) %>% head(-1) %>% c("value"))
+    
+    cn <- names(.df)
+    cn_grp <- cn %>%
+      str_subset(tail(cn, 1), negate = T)
+    cn_grp_last <- tail(cn_grp, 1)
+    
+    df_out <- .df %>%
+      mutate(name = .df[[cn_grp_last]]) %>%
+      group_by_at(cn_grp) %>%
+      summarise(.groups = "drop", children = list(list("name" = name[1], "value" = value[1]))) %>%
+      select(-all_of(cn_grp_last))
+    
+  } else {
+    
+    cn <- names(.df)
+    cn_grp <- cn %>%
+      str_subset(tail(cn, 1), negate = T)
+    cn_grp_last <- tail(cn_grp, 1)
+    
+    df_out <- .df %>%
+      mutate(name = .df[[cn_grp_last]]) %>%
+      group_by_at(cn_grp) %>%
+      summarise(.groups = "drop", children = list(list("name" = name[1], "children" = children))) %>% 
+      select(-all_of(cn_grp_last))
+    
+  }
+  
+  
+  if(ncol(df_out) > 2) {
+    Recall(df_out, first_run = F)
+  } else {
+    json_out <- list("name" = df_out[[1]][1], "children" = df_out %>% pull(2) )
+    return(toJSON(json_out, auto_unbox = T))
+  }
+  
+}
+
+json_from_r <- generate_data_f() %>%
+  data_to_json_f() # alternatively, one can tune d3r::d3_nest
+
+ojs_define(json_from_r = json_from_r)
+
+```
+
+```{ojs}
+//| echo: false
+//| # format:html:code-fold: true
+
+import { chart as my_d3_tree } with { data as flare } from "@d3/tree"
+import { chart as my_force_directed_tree } with { data as data } from "@d3/force-directed-tree"
+import { chart as my_zoomable_sunburst } with { data as data } from "@d3/zoomable-sunburst"
+import { chart as my_zoomable_icicle } with { data as data } from "@d3/zoomable-icicle"
+import { chart as my_zoomable_circle_packing } with { data as data } from "@d3/zoomable-circle-packing"
+
+data = JSON.parse(json_from_r)
+
+
+```
+
+```{ojs}
+//| echo: false
+
+html `D3 Tree`
+my_d3_tree
+
+html `D3 Force Directed Tree`
+my_force_directed_tree
+
+html `Zoomable Sunburst`
+my_zoomable_sunburst
+
+html `Zoomable Icicle`
+my_zoomable_icicle
+
+html `Zoomable Circle Packing`
+my_zoomable_circle_packing
+
+```

@@ -1,0 +1,55 @@
+---
+title: "Dashboard"
+format:
+  html:
+    self-contained: true
+output:
+  flexdashboard::flex_dashboard:
+    theme: 
+      version: 3
+      bootswatch: cerulean
+---
+
+
+```{r include=F}
+df <- data.frame(
+  year = 1961:1990,
+  value = runif(30, -10, 20) |> cumsum()
+  )
+
+df$updown <- df$value |> diff() |> c(0, "nn" = _) |> sign()
+
+ojs_define(df = df)
+
+```
+
+::: {.panel-tabset}
+
+## Plot
+
+```{ojs}
+//| echo: false
+
+d3 = require("d3")
+import {Histogram} from "@d3/histogram"
+
+values = d3.range(1000).map(d3.randomNormal(0, 1))
+Histogram(values)
+
+```
+
+## Other Plot
+
+```{ojs}
+//| echo: false
+
+data = FileAttachment("sales-csv.csv").csv({typed: true})
+
+import { chart as my_bar_race } with { data as data } from "@d3/bar-chart-race"
+
+my_bar_race
+
+
+```
+
+:::

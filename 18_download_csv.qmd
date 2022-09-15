@@ -1,0 +1,66 @@
+---
+title: "Download CSV"
+format:
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r}
+#| echo: false
+
+df <- data.frame(
+  name = c("John", "Bedřich"),
+  int = c(1L, 2L),
+  decimal = c(1.1, 2.2),
+  date = Sys.Date() + 0:1,
+  datetime = Sys.time() + 0:1
+)
+
+
+ojs_define(df = df)
+```
+
+```{ojs}
+//| echo: false
+
+import {aq} from '@uwdata/arquero'
+
+
+function myParseCsv(jsonData, colSep = ';', decSep = ','){
+        const headers = Object.keys(jsonData[0]).join(colSep);
+        const content = jsonData.map(
+          r => Object.values(r).map(
+            c => 
+              {if (typeof c === 'number') {
+                return c.toString().replace('.', decSep);
+              } else if (c == null) {
+                return '';
+              } else if (typeof c === 'object') {
+                return c.toLocaleDateString('cs-CZ');
+              } else {
+                return c;
+        	}}).join(colSep)); 
+        const csv = [headers].concat(content).join('\n');
+        
+        var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=UTF-16;' })
+        
+        return blob
+}
+```
+
+```{ojs}
+//| echo: false
+
+d3_df = transpose(df)
+
+DOM.download(myParseCsv(d3_df), "out_file_name.csv", "Download CSV")
+
+aq_df = aq.from(d3_df)
+DOM.download(myParseCsv(aq_df.objects()), "out_file_name.csv", "Download CSV (arquero)")
+
+
+
+
+
+```

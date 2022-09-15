@@ -1,0 +1,116 @@
+---
+title: "AG Grid tables"
+format:
+  html:
+    css: https://unpkg.com/ag-grid-community/dist/styles/ag-theme-balham.css
+    css: https://unpkg.com/ag-grid-community/dist/styles/ag-grid.css
+    theme: flatly
+    font: Georgia
+    self-contained: true
+    page-layout: custom
+mode: visual
+---
+
+```{ojs}
+//| echo: false
+
+// https://www.ag-grid.com/javascript-data-grid/sparklines-overview/
+
+AgGrid = require('ag-grid-enterprise/dist/ag-grid-enterprise.js') // also the css in the YAML header!!!
+
+dat = d3.csvParse(`pfield,pgroup,pclass,product,turnover,costs,profit,profitPct
+Fasteners,Chains and slings,class_dummy,prd1,35000,20000,15000,0.75
+Fasteners,Chains and slings,class_dummy,prd2,36000,19000,17000,0.894736842
+Fasteners,Screws wood appliances,class_dummy,prd3,3000,15500,-12500,-0.806451613
+Fasteners,Screws wood appliances,class_dummy,prd4,37000,15500,21500,1.387096774
+Material processing,Grinders and polishers,class_dummy,prd5,32000,18700,13300,0.711229947
+Material processing,Thread cutters,class_dummy,prd6,72000,42000,30000,0.714285714
+`, d3.autoType)
+
+
+aq_dat = aq.from(dat)
+  .filter(aq.escape(d => d.turnover <= filter_turnover))
+
+viewof filter_turnover = Inputs.range(
+  [0, 250000], 
+  {value: 215000, step: 5000, label: "Turnover filter:"}
+)
+
+post_aq_dat = aq_dat.objects()
+
+html`<div id="myGrid" style="width: 80%;height:400px;" class="ag-theme-alpine"></div>`
+gridOptions = {
+  const eGridDiv = document.getElementById('myGrid');
+  const columnDefs = [
+    { headerName: "pfield", field: "pfield", rowGroup: true, hide: true },
+    { headerName: "pgroup", field: "pgroup", rowGroup: true, hide: true },
+    { headerName: "pclass", field: "pclass", rowGroup: true, hide: true },
+    { headerName: "product", field: "product" },
+    { 
+      headerName: 'Base Cols',
+      children: [
+        {
+          headerName: "turnover",
+          field: "turnover",
+          valueFormatter: params => params.value.toLocaleString('cs-CZ', { maximumFractionDigits: 0}),
+          aggFunc: 'sum'
+        },
+        {
+          headerName: "costs",
+          field: "costs",
+          valueFormatter: params => params.value.toLocaleString('cs-CZ', { maximumFractionDigits: 0}),
+          aggFunc: 'sum'
+        }
+      ]
+    },
+    { 
+      headerName: 'Profit Cols',
+      children: [
+        {
+          headerName: 'profit',
+          colId: 'profit',
+          valueFormatter: params => params.value.toLocaleString('cs-CZ', { maximumFractionDigits: 0}),
+          valueGetter: params => params.getValue('turnover') - params.getValue('costs'),
+          valueParser: function numberParser(params) {
+            const newValue = params.newValue;
+            let valueAsNumber;
+            if (newValue === null || newValue === undefined || newValue === '') {
+              valueAsNumber = null;
+            } else {
+              valueAsNumber = parseFloat(params.newValue);
+            }
+            return valueAsNumber;
+          },
+           // https://www.ag-grid.com/javascript-data-grid/cell-styles/
+          cellStyle: params => params.value < 0 ? { color: 'red' } : { color: 'black' }
+        },
+        {
+          headerName: 'profitPct',
+          colId: 'profitPct',
+          valueFormatter: params => (params.value*100).toLocaleString('cs-CZ', { maximumFractionDigits: 2}) + "%",
+          valueGetter: function(params, col1 = "profit", col2 = "costs"){
+              return (params.getValue(col1))/params.getValue(col2)
+          }
+        }
+      ]
+    }
+  ]
+  const rowData = post_aq_dat;
+
+  // let the grid know which columns and what data to use
+  const gridOptions = {
+    columnDefs: columnDefs,
+    rowData: rowData,
+    rowSelection: 'single',
+    groupIncludeTotalFooter: true,
+  };
+
+  new AgGrid.Grid(eGridDiv, gridOptions);
+  gridOptions.api.sizeColumnsToFit();
+  
+  return gridOptions;
+}
+
+
+```
+

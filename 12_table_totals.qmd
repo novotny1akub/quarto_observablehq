@@ -1,0 +1,36 @@
+---
+title: "OJS tables"
+format:
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r include=F}
+library(tidyverse)
+
+cars <- mpg %>% select(displ, cyl)
+
+cars_totals <- mpg %>% select(displ, cyl) %>%
+  group_by(NULL) %>%
+  summarise_all(sum)
+
+
+ojs_define(cars = cars, cars_totals = cars_totals)
+```
+
+```{ojs}
+//| echo: false
+
+
+Inputs.table(transpose(cars))
+
+Inputs.table(transpose(cars_totals), {
+  header: {
+    displ: "     ",
+    cyl: "   "}
+})
+
+
+
+```

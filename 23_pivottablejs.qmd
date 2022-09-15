@@ -1,0 +1,88 @@
+---
+title: "Pivottable.js"
+format:
+  html:
+    theme: flatly
+    font: Georgia
+    self-contained: true
+    page-layout: custom
+mode: visual
+---
+
+```{ojs}
+//| echo: false
+
+pivottable = {
+  const $ = await require("https://code.jquery.com/jquery-3.5.1.min.js");
+  const jqui = await require('https://code.jquery.com/ui/1.12.1/jquery-ui.min.js');
+  const pt = await require('https://pivottable.js.org/dist/pivot.js');
+
+  return function(app, sample) {
+    const { title, ui, data, params } = sample;
+    app.innerHTML = '';
+
+    const e1 = document.createElement('div');
+    e1.setAttribute('id', 'pivot');
+    app.appendChild(e1);
+
+    if (ui) window.$('#pivot').pivotUI(data, params);
+    else window.$('#pivot').pivot(data, params);
+
+    return true;
+  };
+}
+
+styles = html`<style>
+#app{font-family:"Arial" !important;}
+.pvtRowLabel,.pvtColLabel,.pvtTotalLabel.pvtColTotalLabel,pvtTotalLabel.pvtRowTotalLabel {font-family: "Arial Black";font-weight:400;}
+</style>
+<link href="https://pivottable.js.org/dist/pivot.css" rel="stylesheet" />`
+
+dat = d3.csvParse(`region,area,turnover,plan_turnover,gp,plan_gp
+region1,area1,1330000.01,1000000,1330000.01,1000000
+region1,area2,3000000,2900000,1330000.01,1000000
+region1,area3,5000000,4500000,1330000.01,1000000
+region1,area4,7000000,8000000,1330000.01,1000000
+region2,area5,7000000,8000000,1330000.01,1000000`, d3.autoType)
+
+
+aq_dat = aq.from(dat)
+  .filter(aq.escape(d => d.turnover <= filter_turnover))
+
+viewof filter_turnover = Inputs.range(
+  [0, 7000000], 
+  {value: 7000000, step: 1, label: "Filter turnover:"}
+)
+
+post_aq_dat = aq_dat.objects()
+
+viewof example = {
+  var dom = html`<div id="app" style="overflow:auto;"></div>`;
+  yield dom;
+  pivottable(dom, {
+    title: 'Sample',
+    ui: true,
+    data: post_aq_dat,
+    params: {
+      rows: ["region"],
+      cols: ["area"],
+      aggregatorName: "Sum",
+      vals: ["turnover"],
+      rendererName: "Heatmap",
+      rendererOptions: {
+        table: {
+          clickCallback: function(e, value, filters, pivotData) {
+            var names = [];
+            pivotData.forEachMatchingRecord(filters, function(record) {
+              names.push(record.Name);
+            });
+          }
+        }
+      }
+    }
+  });
+}
+
+
+```
+

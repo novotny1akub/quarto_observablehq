@@ -1,0 +1,291 @@
+---
+title: Vega-Lite
+format:
+  html:
+    self-contained: true
+    page-layout: custom
+mode: visual
+---
+
+```{ojs}
+//| echo: false
+//| # format:html:code-fold: true
+
+import { aq, op } from '@uwdata/arquero'
+import {vl} from '@vega/vega-lite-api-v5'
+import { cars, alphabet } from '@observablehq/vega-lite'
+
+
+vowels = alphabet.map(d => ({...d, vowel: "AEIOU".includes(d.letter)}))
+marketCap = FileAttachment("market-cap.csv").csv()
+airports = FileAttachment("airports.csv").csv()
+weather = d3.csvParse(await FileAttachment("pwm-weather.csv").text())
+
+
+```
+
+### Charting with Vega-Lite
+
+```{ojs}
+//| echo: false
+
+// https://observablehq.com/@observablehq/vega-lite?collection=@observablehq/observable-for-vega-lite
+// Inputs.table(cars)
+
+// type of chart (--> scatter)
+vl.markPoint({ shape: 'diamond' })
+  // Using the cars data (below)
+  .data(cars)
+  // The parameters we pass to encode() define an encoding or mapping between our data and the chart.
+  // encodings here https://vega.github.io/vega-lite/docs/encoding.html
+  .encode(
+    // For x, use the Horsepower field
+    vl.x().fieldQ("Horsepower"),
+    // For y, use the Miles_per_Gallon field
+    vl.y().fieldQ("Miles_per_Gallon"),
+    // For tooltips, show the Name field
+    vl.tooltip().fieldN("Name")           
+  )
+  // you can use toObject() to see the underlying json for debugging
+  .render( { renderer: "svg" } )          
+
+
+// Make a bar chart
+vl.markBar()          
+  .data(cars)
+  .encode(
+    // y can come before x: different orders won't break anything
+    // field?() helps Vega-Lite determine corresponding scale and axis types
+    // fieldQ() quantitative	numerical magnitudes	1, 1.2, 3, 4, $1,230.60
+    // fieldO()	ordinal	like nominal, but with an inherent order	small, medium, large
+    // fieldT()	temporal	corresponding to Date values	2019-01-02T00:01:23Z, 1996
+    // fieldN()	nominal	unordered, categorical data	Audi, Ford, Hyundai, Tesla
+    vl.y().fieldN("Origin"), 
+    // For x, count the number of records
+    // aggregate function, see the link below for Supported Aggregation Operations
+    // https://vega.github.io/vega-lite/docs/aggregate.html#ops
+    vl.x().average("Miles_per_Gallon") // vl.x().count() 
+  )
+  .render()
+
+```
+
+### Vega-Lite Chart Types
+
+```{ojs}
+//| echo: false
+
+// https://observablehq.com/@observablehq/vega-lite-chart-types?collection=@observablehq/observable-for-vega-lite
+
+// think less of “chart type” and more of “what ‘mark’ I am trying to make
+// a circle can be used in a scatter chart, sized differently to create a bubble chart, or placed at geographical coordinates in a map
+
+// https://github.com/d3/d3-format
+d3.format(".0%")(0.123);  // rounded percentage, "12%"
+d3.format("($.2f")(-3.5); // localized fixed-point currency, "(£3.50)"
+d3.format("+20")(42);     // space-filled and signed, "                 +42"
+d3.format(".^20")(42);    // dot-filled and centered, ".........42........."
+d3.format(".2s")(42e6);   // SI-prefix with two significant digits, "42M"
+d3.format("#x")(48879);   // prefixed lowercase hexadecimal, "0xbeef"
+d3.format(",.2r")(4223);  // grouped thousands with two significant digits, "4,200"
+
+html `<h4>Bar Chart</h4>`
+
+viewof simpleBar = vl.markBar()
+  .data(alphabet)
+  .encode(
+    vl.x().fieldO("letter"), // .sort(vl.fieldQ("frequency").order("descending")), // Letters are ordinal on the x-axis
+    vl.y().fieldQ("frequency").axis({ format: "%" }) // Frequency on the y-axis, formatted as percent
+  )
+  .render()
+  
+  
+viewof horizontalBar = vl.markBar()
+  .data(alphabet)
+  .encode(
+    vl.y().fieldO("letter"),
+    vl.x().fieldQ("frequency").axis({ format: "%" })
+  )
+  .render()
+  
+  
+viewof aggregatedBar = vl.markBar()
+  .data(vowels)
+  .encode(
+    vl.x().sum("frequency").axis({ format: "%" }),
+    vl.y().fieldN("vowel")
+  )
+  .render()
+  
+viewof stackedBar = vl.markBar()
+  .data(weather)
+  .encode(
+    // timeUnit() extracts the month from date on the fly
+    // available options https://vega.github.io/vega-lite/docs/timeunit.html
+    vl.x().fieldO("date").timeUnit("day"), // tcmonth vs utcyear vs day
+    vl.y().count(), // .stack("normalize").axis({ format: "%" }),
+    vl.color().fieldN("condition") // .scale({ range: weatherColors })
+  )
+  .render()
+  
+weatherColors = ["darkgray", "steelblue", "paleturquoise", "gold"]
+viewof groupedBar = vl.markBar()
+  .data(weather)
+  .encode(
+    vl.column().fieldO("date").timeUnit("utcmonth"),
+    vl.row().fieldO("date").timeUnit("year"),
+    vl.x().fieldN("condition").axis({ title: null }), // because of repeated titles
+    vl.y().count(),
+    vl.color().fieldN("condition").scale({ range: weatherColors })
+  )
+  .render()
+
+html `<h4>Line Chart</h4>`
+
+
+viewof line = vl.markPoint()  // markPoint() markLine({ interpolate: "step" }) 
+  //.data(marketCap)
+  .data(marketCap.filter(d => new Date(d.date) > new Date(2018, 0, 1)))
+  .encode(
+    vl.x().fieldT("date"), // .fieldT without an explicit timeUnit() chooses sane time-based labels
+    vl.y().fieldQ("market cap").axis({ format: "$s" }),
+    vl.color().fieldN("symbol") // .sort(vl.max("market cap").order("descending"))
+  )
+  .render()
+  
+viewof scatter = vl.markPoint()
+  .data(weather)
+  .encode(
+    vl.x().fieldT("date"), // .timeUnit('utcmonthdate'),
+    vl.y().fieldQ("tmax"),
+    vl.color().fieldN("condition").scale({ range: weatherColors }),
+    // vl.shape().fieldN("condition")
+  )
+  .width(1000)
+  .height(650)
+  .config({axisLeft: {title: null}, header: {title: null}}) // not working with text
+  .render()
+  
+viewof heatmap = vl.markRect({tooltip: {"content": "data"}, clip: true})
+  .data(weather)
+  .encode(
+    vl.y().fieldO("date").timeUnit("month"),
+    vl.x().fieldO("date").timeUnit("date"),
+    // color schemes https://vega.github.io/vega/docs/schemes/#reference
+    vl.color().average("temp_max").scale({ scheme: "redyellowblue", reverse: true }),
+    // vl.size().average("precip")
+  )
+  .render()
+  
+viewof geoScatter = vl.markSquare({ size: 30 })
+  .data(airports)
+  // https://github.com/d3/d3-geo#azimuthal-projections
+  .project(vl.projection("albersUsa"))        // "Albers USA" includes an inset for Alaska and Hawaiʻi
+  // .project(vl.projection("orthographic").rotate([70, -10]))
+  .encode(
+    vl.longitude().fieldQ("longitude"),
+    vl.latitude().fieldQ("latitude"),
+    vl.color().fieldN("state").legend(false), // Color by state, but don’t need a legend
+    vl.tooltip(["name", "state", "longitude", "latitude"])
+  )
+  .width(1000)
+  .height(650)
+  .render()
+  
+viewof geoScatterFeatures = {
+  // Landmass for the U.S.
+  const landmass = vl.markGeoshape()
+    // Get the shape for the U.S. from the us-atlas npm module.
+    .data(vl.topojson("https://unpkg.com/us-atlas@3/nation-10m.json").feature("nation"))
+    .encode(
+      vl.stroke().value("lightgray"),
+      vl.color().value(null)
+    );
+
+  // The previous visualization
+  const points = vl.markCircle({ size: 3 })
+    .data(airports)
+    .encode(
+      vl.longitude().fieldQ("longitude"),
+      vl.latitude().fieldQ("latitude"),
+      vl.color().fieldN("state").legend(false)
+    );
+  
+  // Return a combined view
+  return vl
+    .layer(landmass, points)  // Layer the views together.
+    .project(vl.projection("albersUSA"))
+    .render();
+}
+```
+
+### Layers and Facets and Concat
+
+
+```{ojs}
+//| echo: false
+
+// multiple layers can share a canvas
+viewof layeredBar = vl
+  .data(alphabet)
+  .layer(
+    vl.markBar()
+      .encode(
+        vl.y().fieldN("letter"),
+        vl.x().fieldQ("frequency").axis({ format: "%", grid: false })
+      ),
+    vl.markText({ align: "left", dx: 5, dy: 1 })
+      .encode(
+        vl.y().fieldN("letter"),
+        vl.x().fieldQ("frequency"),
+        vl.text().fieldN("frequency").format(".2%")
+      )
+  )
+  .render()
+  
+// layers on layers on layers
+viewof layeredTrend = vl.data(weather)
+  .encode(
+    vl.x().fieldO("date").timeUnit("utcmonth"),
+    vl.y().fieldQ("tmax")
+  )
+  .layer(
+    vl.markCircle()
+      .encode(
+        vl.color().fieldN("condition").scale({ range: weatherColors })
+      ),
+    vl.markErrorband({ extent: "stdev" }), // error range of values
+    vl.markLine()
+      .encode(
+        vl.y().mean("tmax")
+      )
+  )
+  .render()
+  
+// faceted
+viewof facetedCars = vl.markCircle()
+  .data(cars)
+  .encode(
+    vl.column().fieldN("Origin"),
+    vl.x().fieldQ("Horsepower"),
+    vl.y().fieldQ("Miles_per_Gallon")
+  )
+  .width(200).height(200)
+  .render()
+
+// repeated chart definition
+viewof repeatedQuantities = vl.markBar()
+  .data(cars)
+  .encode(
+    vl.x().fieldQ(vl.repeat("repeat")).bin(true),
+    vl.y().count(),
+    vl.color().fieldN("Origin")
+  )
+  .width(screen.width / 3 - 100)
+  .height(screen.height / 4)
+  .repeat(["Horsepower", "Acceleration", "Displacement", "Miles_per_Gallon"])
+  .columns(3)
+  .render()
+
+```
+

@@ -1,0 +1,121 @@
+---
+title: "Tabulator tables"
+format:
+  html:
+    css: https://unpkg.com/tabulator-tables@5/dist/css/tabulator.min.css
+    theme: flatly
+    font: Georgia
+    self-contained: true
+    page-layout: custom
+mode: visual
+---
+
+```{ojs}
+//| echo: false
+
+// https://observablehq.com/@observablehq/input-table
+
+
+dat = d3.csvParse(`region,area,turnover,plan_turnover,gp,plan_gp
+region1,area1,1330000.01,1000000,1330000.01,1000000
+region1,area2,3000000,2900000,1330000.01,1000000
+region1,area3,5000000,4500000,1330000.01,1000000
+region1,area4,7000000,8000000,1330000.01,1000000
+region2,area5,7000000,8000000,1330000.01,1000000
+`, d3.autoType)
+
+
+Tabulator = require("tabulator-tables@5") //also css in the YAML header
+
+myCurrCzkObj = ({
+  formatter: function(cell, formatterParams, onRendered){
+    return cell.getValue().toLocaleString('cs-CZ', { maximumFractionDigits: 0}) //, style: 'currency', currency: 'CZK'
+  },
+  bottomCalcFormatter: "money",
+  bottomCalc: function(values, data, calcParams) {
+    if (values && values.length) {
+      var total = values.reduce((sum, x) => +sum + +x);
+      return total
+    }
+  },
+  bottomCalcFormatterParams:
+  {
+    decimal: ",",
+    thousand: " ",
+    symbol: "CZK ",
+    precision: 0
+  },
+  variableHeight:true
+})
+
+myGrpTxtObj = ({
+  formatter: function(values, data, calcParams) {
+      return '---';
+  },
+  bottomCalc: function(values, data, calcParams) {
+      return '---';
+  },
+  bottomCalcFormatter: function(values, data, calcParams) {
+      return '---';
+  }
+})
+
+
+myPctObj = ({
+  formatter: function(cell, formatterParams, onRendered){
+    return (cell.getValue()[0]*100/cell.getValue()[1]).toFixed(2) + "%"; //return the contents of the cell;
+  },
+  bottomCalc: function(values, data, calcParams) {
+    if (values && values.length) {
+      const first = values.map(x => x[0]).reduce((sum, x) => +sum + +x);
+      const second = values.map(x => x[1]).reduce((sum, x) => +sum + +x);
+      return (first*100/second).toFixed(2) + "%";
+    }
+  },
+  variableHeight:true
+})
+
+```
+
+```{ojs}
+//| echo: false
+
+
+
+
+{
+  const data = dat
+  const table = new Tabulator(document.createElement("DIV"), {
+    data,
+    groupBy:["region"],
+    columnCalcs:"both", //show column calculations at top and bottom of table and in groups
+    groupStartOpen:true,
+    groupClosedShowCalcs:true, //show column calculations when a group is closed
+    columns:[
+      {title:"Region", field:"region", ...myGrpTxtObj},
+      {title:"Area", field:"area"},
+      {title:"Turnover", field:"turnover", ...myCurrCzkObj},
+      {title:"Plan Turnover", field:"plan_turnover", ...myCurrCzkObj},
+      {
+        title:"Plnění Turnover (%)",
+        field: "plneni_turnover_pct",
+        mutator: (value, data, type, params, component) => [data["turnover"], data["plan_turnover"]],
+        ...myPctObj
+      },
+      {title:"Gross Profit", field:"gp", ...myCurrCzkObj},
+      {title:"Plan Gross Profit", field:"plan_gp", ...myCurrCzkObj},
+      {
+        title:"Plnění Gross Profit (%)",
+        field: "plneni_gp_pct",
+        mutator: (value, data, type, params, component) => [data["gp"], data["plan_gp"]],
+        ...myPctObj
+      }
+    ]
+  });
+
+  table.element.value = data;
+
+  return table.element;
+}
+
+```

@@ -1,0 +1,42 @@
+---
+title: Bar Chart Race
+format:
+  html:
+    self-contained: true
+mode: visual
+---
+
+```{r include=F}
+library(tidyverse)
+library(jsonlite)
+library(lubridate)
+
+df <- tibble(date = seq(ymd("2000-01-01"), ymd("2020-01-01"), by = "year")) %>%
+  mutate(
+    tbl = list(tibble( name = paste("salesrep", 1:30), category = rep(paste("team", 1:5), each = 6) ))
+  ) %>%
+  unnest(cols = c(tbl)) %>%
+  mutate(
+    value = runif(630, min = -20, max = 40)
+  ) %>%
+  arrange(category, name, date) %>%
+  group_by(name, category) %>%
+  mutate(value = cumsum(value)) %>%
+  ungroup()
+ 
+
+write_csv(df, "sales-csv.csv")
+```
+
+```{ojs}
+//| echo: false
+//| # format:html:code-fold: true
+data = FileAttachment("sales-csv.csv").csv({typed: true})
+
+import { chart as my_bar_race } with { data as data } from "@d3/bar-chart-race"
+
+my_bar_race
+
+
+```
+

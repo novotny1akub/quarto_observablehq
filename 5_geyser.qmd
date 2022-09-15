@@ -12,13 +12,12 @@ d3 = require('d3')
 import {slider} from "@jashkenas/inputs"
 import {Histogram} from "@d3/histogram"
 
-
+htl.html `Number of bins (html):`
 viewof num_bins = slider({
   min: 1,
   max: 50,
   value: 30,
-  step: 1,
-  title: "Number of bins:"
+  step: 1
 })
 
 faithful = await d3.tsv(

@@ -1,0 +1,98 @@
+---
+title: "AG Grid tables with pivot"
+format:
+  html:
+    css: https://unpkg.com/ag-grid-community/dist/styles/ag-theme-balham.css
+    css: https://unpkg.com/ag-grid-community/dist/styles/ag-grid.css
+    theme: flatly
+    font: Georgia
+    self-contained: true
+    page-layout: custom
+mode: visual
+---
+
+```{ojs}
+//| echo: false
+
+// https://www.ag-grid.com/javascript-data-grid/integrated-charts-api-cross-filter-chart/
+
+AgGrid = require('ag-grid-enterprise/dist/ag-grid-enterprise.js') // also the css in the YAML header!!!
+
+dat = d3.csvParse(`pfield,pgroup,pclass,product,turnover,costs
+Fasteners,Chains and slings,class_dummy,prd1,35000,20000
+Fasteners,Chains and slings,class_dummy,prd2,36000,19000
+Fasteners,Screws wood appliances,class_dummy,prd3,3000,15500
+Fasteners,Screws wood appliances,class_dummy,prd4,37000,15500
+Material processing,Grinders and polishers,class_dummy,prd5,32000,18700
+Material processing,Thread cutters,class_dummy,prd6,72000,42000`, d3.autoType)
+
+gridOptions = {
+  const eGridDiv = document.getElementById('myGrid');
+  const columnDefs = [
+    {
+      headerName: "pfield", field: "pfield", hide: true,
+      rowGroup: true, enablePivot: true, enableRowGroup: true,
+      filter: true
+    },
+    {
+      headerName: "pgroup", field: "pgroup", hide: true,
+      rowGroup: true, enablePivot: true, enableRowGroup: true,
+      filter: true
+    },
+    {
+      headerName: "pclass", field: "pclass", hide: true,
+      rowGroup: true, enablePivot: true, enableRowGroup: true,
+      filter: true
+    },
+    {
+      headerName: "product", field: "product", hide: false,
+      enablePivot: true, enableRowGroup: true,
+      filter: true
+    },
+    {
+      headerName: "turnover",
+      field: "turnover",
+      valueFormatter: params => params.value.toLocaleString('cs-CZ', { maximumFractionDigits: 0}),
+      aggFunc: 'sum'
+    },
+    {
+      headerName: "costs",
+      field: "costs",
+      valueFormatter: params => params.value.toLocaleString('cs-CZ', { maximumFractionDigits: 0}),
+      aggFunc: 'sum'
+    },
+    {
+      headerName: 'profit',
+      colId: 'profit',
+      valueFormatter: params => params.value.toLocaleString('cs-CZ', { maximumFractionDigits: 0}),
+      valueGetter: params => params.getValue('turnover') - params.getValue('costs')
+    },
+    {
+      headerName: 'profitPct',
+      colId: 'profitPct',
+      valueFormatter: params => (params.value*100).toLocaleString('cs-CZ', { maximumFractionDigits: 2}) + "%",
+      valueGetter: function(params, col1 = "profit", col2 = "costs"){
+        return (params.getValue(col1))/params.getValue(col2)
+      }
+    }
+  ]
+
+  const gridOptions = {
+    columnDefs: columnDefs,
+    rowData: dat,
+    pivotMode: false,
+    sideBar: ['columns', 'filters'],
+    enableCharts: true,
+    enableRangeSelection: true,
+  };
+
+  new AgGrid.Grid(eGridDiv, gridOptions);
+
+  return gridOptions;
+}
+
+html`<div id="myGrid" style="width: 80%;height:600px;" class="ag-theme-alpine"></div>`
+
+
+```
+
