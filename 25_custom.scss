@@ -1,0 +1,43 @@
+/*-- scss:defaults --*/
+$primary:  #c00 !default; // changing base color, otherwise blue
+$success: #e7e9ea !default; // navbar menu that is not active
+
+/*-- scss:rules --*/
+
+// for filter menu items
+details summary:hover{
+  color: $primary;
+}
+
+// for inputs.Select from the filter menu (otherwise blue)
+option:checked {
+  box-shadow: 0 0 10px 100px $success inset;
+}
+
+.btn-quarto {
+  background-color: var(--bs-gray-400) !important;
+  color: $primary !important;
+}
+
+.btn-quarto:hover {
+  font-weight: 600;
+}
+
+
+.ag-header * {
+    color: $primary;
+}
+
+.ag-body * {
+    color: $secondary;
+}
+
+.ag-row:hover * {
+  background-color: $success;
+}
+
+.ag-row-footer * {
+  color: $primary;
+  background-color: var(--ag-header-background-color);
+  font-weight: 600;
+}

@@ -81,7 +81,7 @@ myPctObj = ({
 //| echo: false
 
 
-
+html`<style> h1 {position: sticky; top: 0;} </style>`
 
 {
   const data = dat

@@ -1,0 +1,82 @@
+---
+format:
+  html:
+    self-contained: true
+    page-layout: custom
+    theme:
+      - default
+      - 25_custom.scss
+---
+
+# Main Title
+This is text.
+
+::: panel-tabset
+# Section 1
+
+::::: grid
+
+:::::: {class="g-col-2"}
+```{ojs}
+//| echo: false
+//| panel: sidebar
+
+blob = new Blob(['\uFEFF' + 'a,b,c'], { type: 'text/csv;charset=UTF-16;' })
+
+DOM.download(blob, "file.csv", "Download")
+
+
+viewof filter1 = Inputs.form([
+  Inputs.select(
+    [...'abcde'],
+    {
+      value: ['a'],
+      multiple: true, sort: true
+    }
+  )
+], {template: inputs => htl.html`<div>
+  <details><summary> Filter1 </summary>${inputs}</details>
+</div>`})
+
+viewof filter2 = Inputs.form([
+  Inputs.select(
+    [...'abcde'],
+    {
+      value: [...'abcde'],
+      multiple: true
+    }
+  )
+], {template: inputs => htl.html`<div>
+  <details><summary> Filter2 </summary>${inputs}</details>
+</div>`})
+
+```
+::::::
+
+:::::: g-col-10
+
+```{ojs}
+//| echo: false
+//| include: false
+
+import {gridOptions} from "@novotny1akub/hello-ag-grid-with-aggregations"
+
+gridOptions
+
+```
+
+```{ojs}
+//| echo: false
+AgGrid = require('ag-grid-enterprise/dist/ag-grid-enterprise.js')
+
+
+grid = html`<div id="myGrid" style="width: 100%;height:400px" class="ag-theme-balham"></div>`
+
+```
+
+::::::
+:::::
+
+# Section 2
+
+::::

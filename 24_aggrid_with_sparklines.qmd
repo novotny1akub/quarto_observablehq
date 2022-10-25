@@ -1,0 +1,77 @@
+---
+title: "AG Grid with Sparklines"
+format:
+  html:
+    theme: flatly
+    font: Georgia
+    self-contained: true
+    page-layout: custom
+mode: visual
+---
+
+```{r include=F}
+
+library(tidyverse)
+
+df <- tibble(
+  field = rep(c("field1", "field1", "field2"), each = 5),
+  product = rep(c("product1", "product2", "product3"), each = 5),
+  date = rep(seq(as.Date("2022-01-01"), as.Date("2022-05-01"), by = "months"), times = 3) %>% as.character(),
+  value = c(20, 50, 70, 60, 55, 70, 60, 55, 50, 20, 20, 30, 50, 35, 5)
+) %>%
+  rowwise() %>%
+  mutate(chart = list(list("xVal" = date, "yVal" = value))) %>% ungroup() %>%
+  group_by(field, product) %>%
+  summarise(
+    chart = list(chart)
+  )
+
+ojs_define(df = df)
+
+```
+
+
+```{ojs}
+//| echo: false
+
+AgGrid = require('ag-grid-enterprise/dist/ag-grid-enterprise.js') // also the css in the YAML header!!!
+
+html`<div id="myGrid" style="width: 50%;height:400px;" class="ag-theme-alpine"></div>`
+gridOptions = {
+  const eGridDiv = document.getElementById('myGrid');
+  const columnDefs = [
+    { field: 'field', rowGroup: true, hide: true },
+    { field: 'product', maxWidth: 110 },
+    {
+      field: 'chart',
+      maxWidth: 110,
+      cellRenderer: 'agSparklineCellRenderer',
+      cellRendererParams: {
+        sparklineOptions: {
+          type: 'line',
+          xKey: 'xVal',
+          yKey: 'yVal',
+          marker: {size: 3},
+        },
+      },
+    },
+  ];
+
+  const gridOptions = {
+    columnDefs: columnDefs,
+    rowData: transpose(df),
+    rowSelection: 'single',
+    defaultColDef: {
+      flex: 1,
+      minWidth: 100,
+      resizable: true,
+    },
+  };
+
+  new AgGrid.Grid(eGridDiv, gridOptions);
+  gridOptions.api.sizeColumnsToFit();
+  return gridOptions;
+}
+
+```
+
