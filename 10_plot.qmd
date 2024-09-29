@@ -13,6 +13,8 @@ Example of Plot: a scatterplot of the height and weight of Olympic athletes, col
 ```{ojs}
 
 import {athletes} from '@observablehq/plot'
+import { Plot } from "https://cdn.skypack.dev/@observablehq/plot"
+
 
 dotplot = Plot.dot(athletes, {x: "weight", y: "height", stroke: "sex"}).plot()
 dotplot.legend("color")

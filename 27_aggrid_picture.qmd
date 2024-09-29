@@ -1,0 +1,62 @@
+---
+title: "AG Grid with Pictures"
+format:
+  html:
+    theme: flatly
+    font: Georgia
+    self-contained: true
+    page-layout: custom
+mode: visual
+---
+
+```{r include=F}
+
+library(tidyverse)
+
+df <- tibble(
+  product = c("ČISTIČ BRZD", "ČISTICÍ PAPÍR ECOLINE"),
+  picture = c(
+    "https://media.wuerth.com/source/eshop/stmedia/wuerth/images/std.lang.all/resolutions/category/576px/170494.jpg",
+    "https://media.wuerth.com/source/eshop/stmedia/wuerth/images/std.lang.all/resolutions/category/576px/42348.jpg"
+  ),
+  value = c(200, 400)
+)
+
+ojs_define(df = df)
+
+```
+
+
+```{ojs}
+//| echo: false
+
+AgGrid = require('ag-grid-enterprise/dist/ag-grid-enterprise.js') // also the css in the YAML header!!!
+
+picRenderer = params => `<img src="${params.value}" width="50" height="50">`;
+
+html`<div id="myGrid" style="width: 20%;height:400px;" class="ag-theme-alpine"></div>`
+gridOptions = {
+  const eGridDiv = document.getElementById('myGrid');
+  const columnDefs = [
+    { field: 'product'},
+    { field: 'picture', cellRenderer: picRenderer, maxWidth: "90" }
+  ];
+
+  const gridOptions = {
+    columnDefs: columnDefs,
+    rowData: transpose(df),
+    rowSelection: 'single',
+    defaultColDef: {
+      flex: 1,
+      minWidth: 100,
+      resizable: true,
+    },
+  };
+
+  new AgGrid.Grid(eGridDiv, gridOptions);
+  gridOptions.api.sizeColumnsToFit();
+  return gridOptions;
+}
+
+```
+

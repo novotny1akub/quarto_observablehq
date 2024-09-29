@@ -1,0 +1,28 @@
+---
+title: "Data Table Cell"
+---
+
+Using import
+```{ojs}
+import {datTbl} from "@novotny1akub/ojstbl"
+
+datTbl
+
+```
+
+Using html code from Embed
+```{=html}
+<div id="observablehq-datTbl-5d27bed1"></div>
+<p>Credit: <a href="https://observablehq.com/@novotny1akub/ojstbl@156">Data Table Cell by novotny1akub</a></p>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@observablehq/inspector@5/dist/inspector.css">
+<script type="module">
+import {Runtime, Inspector} from "https://cdn.jsdelivr.net/npm/@observablehq/runtime@5/dist/runtime.js";
+import define from "https://api.observablehq.com/@novotny1akub/ojstbl@156.js?v=3";
+new Runtime().module(define, name => {
+  if (name === "datTbl") return new Inspector(document.querySelector("#observablehq-datTbl-5d27bed1"));
+});
+</script>
+
+```
+

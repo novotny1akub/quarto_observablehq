@@ -1,0 +1,152 @@
+---
+title: "AG Grid with custom aggregation"
+format:
+  html:
+    self-contained: true
+    page-layout: custom
+---
+
+```{r include=F}
+
+# https://www.ag-grid.com/javascript-data-grid/aggregation-custom-functions/
+
+library(tidyverse)
+
+df <- tibble(
+  product = rep(letters[1:3], 6),
+  value = runif(18, min = 1, max = 100) %>% floor()
+)
+
+ojs_define(df = df)
+
+```
+
+```{ojs}
+//| echo: false
+
+// sum function has no advantage over the built in sum function.
+// it's shown here as it's the simplest form of aggregation and
+// showing it can be good as a starting point for understanding
+// hwo the aggregation functions work.
+function sumFunction(params) {
+  let result = 0;
+  params.values.forEach((value) => {
+    if (typeof value === 'number') {
+      result += value;
+    }
+  });
+  return result;
+}
+
+// similar to Math.min() except handles missing values, if any value is missing, then
+// it returns the other value, or 'null' if both are missing.
+function min(a, b) {
+  const aMissing = typeof a !== 'number';
+  const bMissing = typeof b !== 'number';
+
+  if (aMissing && bMissing) {
+    return null;
+  } else if (aMissing) {
+    return b;
+  } else if (bMissing) {
+    return a;
+  } else if (a > b) {
+    return b;
+  } else {
+    return a;
+  }
+}
+
+// similar to Math.max() except handles missing values, if any value is missing, then
+// it returns the other value, or 'null' if both are missing.
+function max(a, b) {
+  const aMissing = typeof a !== 'number';
+  const bMissing = typeof b !== 'number';
+
+  if (aMissing && bMissing) {
+    return null;
+  } else if (aMissing) {
+    return b;
+  } else if (bMissing) {
+    return a;
+  } else if (a < b) {
+    return b;
+  } else {
+    return a;
+  }
+}
+
+// min and max agg function. the leaf nodes are just numbers, like any other
+// value. however the function returns an object with min and max, thus the group
+// nodes all have these objects.
+function minAndMaxAggFunction(params) {
+  // this is what we will return
+  const result = {
+    min: null,
+    max: null,
+    // because we are returning back an object, this would get rendered as [Object,Object]
+    // in the browser. we could get around this by providing a valueFormatter, OR we could
+    // get around it in a customer cellRenderer, however this is a trick that will also work
+    // with clipboard.
+    toString: function () {
+      return '( ' + this.min + ' ... ' + this.max + ' )';
+    },
+  };
+  // update the result based on each value
+  params.values.forEach((value) => {
+    const groupNode =
+      value !== null && value !== undefined && typeof value === 'object';
+
+    const minValue = groupNode ? value.min : value;
+    const maxValue = groupNode ? value.max : value;
+
+    // value is a number, not a 'result' object,
+    // so this must be the first group
+    result.min = min(minValue, result.min);
+    result.max = max(maxValue, result.max);
+  });
+
+  return result;
+}
+
+
+```
+
+```{ojs}
+//| echo: false
+
+AgGrid = require('ag-grid-enterprise/dist/ag-grid-enterprise.js') // also the css in the YAML header!!!
+
+html`<div id="myGrid" style="width: 60%;height:400px;" class="ag-theme-alpine"></div>`
+gridOptions = {
+  const eGridDiv = document.getElementById('myGrid');
+  const columnDefs = [
+    { field: 'product', rowGroup: true },
+    { field: 'value', aggFunc: minAndMaxAggFunction } // aggFunc: sumFunction     aggFunc: 'mySum'
+  ];
+
+  const gridOptions = {
+    columnDefs: columnDefs,
+    rowData: transpose(df),
+    rowSelection: 'single',
+    defaultColDef: {
+      flex: 1,
+      minWidth: 100,
+      resizable: true,
+    },
+    aggFuncs: {
+      'mySum': params => {
+          let sum = 0;
+          params.values.forEach(value => sum += value);
+          return sum;
+      }
+    },
+  };
+
+  new AgGrid.Grid(eGridDiv, gridOptions);
+  gridOptions.api.sizeColumnsToFit();
+  return gridOptions;
+}
+
+```
+

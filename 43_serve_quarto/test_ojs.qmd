@@ -1,0 +1,13 @@
+---
+title: "Quarto for non-tech users"
+format: html
+---
+
+```{ojs}
+//| echo: false
+
+import {athletes} from '@observablehq/plot'
+
+await Plot.rect(athletes, Plot.bin({fillOpacity: "count"}, {x: "weight", y: "height", fill: "sex"})).plot()
+
+```

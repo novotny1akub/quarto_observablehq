@@ -1,0 +1,384 @@
+---
+title: 'Bar chart race'
+format: html
+echo: true
+---
+
+```{ojs}
+md`# Reusable bar chart race`
+```
+
+```{ojs}
+md`This notebook has been adapted from johnburnmurdoch's [Bar chart race](https://observablehq.com/@johnburnmurdoch/bar-chart-race) notebook.
+
+Data is from [Johns Hopkins University](https://github.com/CSSEGISandData/COVID-19)
+`
+```
+
+```{ojs}
+viewof date = Scrubber(dates, {
+  autoplay: false,
+  loop: false,
+  delay: tickDuration
+})
+```
+
+```{ojs}
+chart = {
+  const svg = d3.select(DOM.svg(width, chart_height));
+
+  let barPadding = (chart_height - (margin.bottom + margin.top)) / (top_n * 5);
+
+  // Title
+  svg
+    .append('text')
+    .attr("class", "title")
+    .attr("y", 24)
+    .html(title);
+
+  // Subtitle
+  svg
+    .append('text')
+    .attr("class", "subTitle")
+    .attr("y", 55)
+    .html(subtitle);
+
+  // Source
+  svg
+    .append('text')
+    .attr("class", "caption")
+    .attr("x", width)
+    .attr("y", chart_height - 5)
+    .style("text-anchor", "end")
+    .html(source);
+
+  let color = d3
+    .scaleOrdinal(d3[color_scheme])
+    .domain([...new Set(data.map(d => d.id))]);
+
+  data.forEach(d => {
+    (d.value = +d.value),
+      (d.value = isNaN(d.value) ? 0 : d.value),
+      (d.date_label = d.date_label === undefined ? d.date : d.date_label),
+      (d.colour = color(d.id));
+  });
+
+  let x = d3.scaleLinear().range([margin.left, width - margin.right - 65]);
+
+  let y = d3
+    .scaleLinear()
+    .domain([top_n, 0])
+    .range([chart_height - margin.bottom, margin.top]);
+
+  let xAxis = d3
+    .axisTop()
+    .scale(x)
+    .ticks(width > 500 ? 5 : 2)
+    .tickSize(-(chart_height - margin.top - margin.bottom))
+    .tickFormat(d => d3.format(',')(d));
+
+  svg
+    .append('g')
+    .attr("class", "axis xAxis")
+    .attr("transform", `translate(0, ${margin.top})`)
+    .call(xAxis)
+    .selectAll('.tick line')
+    .classed('origin', d => d == 0);
+
+  let yearText = svg
+    .append('text')
+    .attr("class", "yearText")
+    .attr("x", width - margin.right)
+    .attr("y", chart_height - 25)
+    .style("text-anchor", "end")
+    .call(halo, 10);
+
+  // Ticker
+  function update(date) {
+    let date_slice = data
+      .filter(d => d.date == date && !isNaN(d.value))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, top_n);
+
+    date_slice.forEach((d, i) => (d.rank = i));
+
+    x.domain([0, d3.max(date_slice, d => d.value)]);
+
+    svg
+      .select('.xAxis')
+      .transition()
+      .duration(tickDuration)
+      .ease(d3.easeLinear)
+      .call(xAxis);
+
+    let bars = svg
+      .selectAll('.bar')
+      .data(date_slice, d => d.id)
+      .join(
+        enter =>
+          enter
+            .append('rect')
+            .attr("class", d => `bar ${d.id.replace(/\s/g, '_')}`)
+            .attr("x", x(0) + 1)
+            .attr("width", d => x(d.value) - x(0) - 1)
+            .attr("y", d => y(top_n + 1) + 5)
+            .attr("height", y(1) - y(0) - barPadding)
+            .style("fill", d => d.colour),
+        update =>
+          update
+            .transition()
+            .duration(tickDuration)
+            .ease(d3.easeLinear)
+            .attr("y", d => y(d.rank) + 5)
+            .attr("width", d => x(d.value) - x(0) - 1),
+        exit =>
+          exit
+            .transition()
+            .duration(tickDuration)
+            .ease(d3.easeLinear)
+            .attr("width", d => x(d.value) - x(0) - 1)
+            .attr("y", d => y(top_n + 1) + 5)
+            .remove()
+      );
+
+    let labels = svg
+      .selectAll('.label')
+      .data(date_slice, d => d.id)
+      .join(
+        enter =>
+          enter
+            .append('text')
+            .attr("class", "label")
+            .attr("x", d => x(d.value) - 8)
+            .attr("y", d => y(top_n + 1) + 5 + (y(1) - y(0)) / 2)
+            .style("text-anchor", "end")
+            .html(d => d.id),
+        update =>
+          update
+            .transition()
+            .duration(tickDuration)
+            .ease(d3.easeLinear)
+            .attr("x", d => x(d.value) - 8)
+            .attr("y", d => y(d.rank) + 5 + (y(1) - y(0)) / 2 + 1),
+        exit =>
+          exit
+            .transition()
+            .duration(tickDuration)
+            .ease(d3.easeLinear)
+            .attr("x", d => x(d.value) - 8)
+            .attr("y", d => y(top_n + 1) + 5)
+            .remove()
+      );
+
+    let valueLabels = svg
+      .selectAll('.valueLabel')
+      .data(date_slice, d => d.id)
+      .join(
+        enter =>
+          enter
+            .append('text')
+            .attr("class", 'valueLabel')
+            .attr("x", d => x(d.value) + 5)
+            .attr("y", d => y(top_n + 1) + 5)
+            .text(d => d.value),
+        update =>
+          update
+            .transition()
+            .duration(tickDuration)
+            .ease(d3.easeLinear)
+            .attr("x", d => x(d.value) + 5)
+            .attr("y", d => y(d.rank) + 5 + (y(1) - y(0)) / 2 + 1)
+            .tween("text", function(d) {
+              let i = d3.interpolateRound(
+                +this.textContent.replace(/,/g, ''),
+                d.value
+              );
+              return function(t) {
+                this.textContent = d3.format(',')(i(t));
+              };
+            }),
+        exit =>
+          exit
+            .transition()
+            .duration(tickDuration)
+            .ease(d3.easeLinear)
+            .attr("x", d => x(d.value) + 5)
+            .attr("y", d => y(top_n + 1) + 5)
+            .remove()
+      );
+
+    yearText.html(date_slice.map(d => d.date_label)[0]);
+  }
+
+  update(dates[0]);
+
+  return Object.assign(svg.node(), { update });
+}
+```
+
+```{ojs}
+draw = {
+  chart.update(date);
+}
+```
+
+```{ojs}
+md`## Usage
+
+[robservable](https://juba.github.io/robservable/) users can call this notebook from R with something like the following. Use the <code>input</code> named list to customize the [settings](#sec_settings) :
+
+\`\`\`r
+## Load sample data from Johns Hopkins' Github
+d <- read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
+
+## Data must be in a data frame with id, date and value columns. Data must be ordered by date.
+d <- d %>%
+  select(-\`Province/State\`, -Lat, -Long) %>%
+  rename(id = \`Country/Region\`) %>%
+  group_by(id) %>%
+  summarise(across(everything(), sum)) %>%
+  pivot_longer(-id, names_to = "date") %>%
+  mutate(date = as.character(lubridate::mdy(date)))
+
+robservable(
+  "https://observablehq.com/@juba/bar-chart-race",
+  include = c("viewof date", "chart", "draw", "styles"),
+  hide = "draw",
+  input = list(
+    data = d,
+    title = "COVID-19 deaths",
+    subtitle = "Cumulative number of COVID-19 deaths by country",
+    source = "Source : Johns Hopkins University"
+  )
+)
+\`\`\`
+`
+```
+
+```{ojs}
+sec_settings = md`## Settings`
+```
+
+```{ojs}
+md`Data must be an array with <code>id</code>, <code>date</code> and <code>value</code> columns, ordered by <code>id</code> and <code>date</code>. An optional <code>date_label</code> column can be used if you want to display another value than <code>date</code> in the chart (for example if you iterate over monthly data but only want to display the year value).`
+```
+
+```{ojs}
+data = d3.csvParse(await FileAttachment('covid_deaths_by_country@1.csv').text())
+```
+
+```{ojs}
+title = 'COVID-19 deaths'
+```
+
+```{ojs}
+subtitle = 'Cumulative number of COVID-19 deaths by country'
+```
+
+```{ojs}
+source = "Source: Johns Hopkins University"
+```
+
+```{ojs}
+tickDuration = 500
+```
+
+```{ojs}
+top_n = 12;
+```
+
+```{ojs}
+color_scheme = "schemeSet3"
+```
+
+```{ojs}
+chart_height = 600
+```
+
+```{ojs}
+margin = ({
+  top: 80,
+  right: 0,
+  bottom: 5,
+  left: 0
+})
+```
+
+```{ojs}
+md`## Notebook code`
+```
+
+```{ojs}
+styles = html`<style>
+text{
+  font-size: 16px;
+  font-family: Roboto Condensed, Open Sans, sans-serif;
+}
+text.title{
+  font-size: 24px;
+  font-weight: 500;
+}
+text.subTitle{
+  font-weight: 500;
+  fill: #777777;
+}
+text.caption{
+  font-weight: 400;
+  font-size: 14px;
+  fill: #777777;
+}
+text.label{
+  font-weight: 600;
+}
+text.yearText{
+  font-size: 50px;
+  font-weight: 700;
+  opacity: 0.25;
+}
+.tick text {
+  font-size: 12px;
+  fill: #777777;
+}
+.xAxis .tick:nth-child(2) text {
+  text-anchor: start;
+}
+.tick line {
+  shape-rendering: CrispEdges;
+  stroke: #dddddd;
+}
+.tick line.origin{
+  stroke: #aaaaaa;
+}
+path.domain{
+  display: none;
+}
+</style>`
+```
+
+```{ojs}
+dates = [...new Set(data.map(d => d.date))]
+```
+
+```{ojs}
+// This is a lightly modified version of Mike Bostock’s text halo function from @d3/connected-scatterplot
+halo = function(text, strokeWidth) {
+  text
+    .select(function() {
+      return this.parentNode.insertBefore(this.cloneNode(true), this);
+    })
+    .style("fill", '#ffffff')
+    .style("stroke", '#ffffff')
+    .style("stroke-width", strokeWidth)
+    .style("stroke-linejoin", 'round')
+    .style("opacity", 1);
+}
+```
+
+```{ojs}
+import { Scrubber } from "@mbostock/scrubber"
+```
+
+```{ojs}
+d3 = require('d3@5')
+```
+

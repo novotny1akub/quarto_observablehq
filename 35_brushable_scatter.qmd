@@ -1,0 +1,167 @@
+---
+title: "Brushable Scatter Plot"
+format:
+  html:
+    self-contained: true
+    echo: false
+    warning: false
+    page-layout: custom
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+
+n <- 10000
+
+df <- tibble(
+  product = paste0("product", 1:n)
+) %>%
+  mutate(
+    is_fastener = sample(c("fastener", "non-fastener"), size = n, replace = T),
+    x = runif(n, 0, 100) %>% round(2),
+    y = rnorm(n, 1, 0.5) %>% round(2)
+  )
+
+ojs_define(r_data = df)
+
+```
+
+
+<!-- Scatter plot prep -->
+```{ojs}
+
+data = Object.assign(transpose(r_data), {x: "Turnover in millions", y: "Price change (percentage)"})
+
+height = 600
+
+margin = ({top: 20, right: 30, bottom: 30, left: 40})
+
+x = d3.scaleLinear()
+    .domain(d3.extent(data, d => d.x)).nice()
+    .range([margin.left, width - margin.right])
+    
+y = d3.scaleLinear()
+   .domain(d3.extent(data, d => d.y)).nice()
+   .range([height - margin.bottom, margin.top])
+   
+   
+xAxis = g => g
+    .attr("transform", `translate(0,${height - margin.bottom})`)
+    .call(d3.axisBottom(x))
+    .call(g => g.select(".domain").remove())
+    .call(g => g.append("text")
+        .attr("x", width - margin.right)
+        .attr("y", -4)
+        .attr("fill", "#000")
+        .attr("font-weight", "bold")
+        .attr("text-anchor", "end")
+        .text(data.x))
+        
+yAxis = g => g
+    .attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(y))
+    .call(g => g.select(".domain").remove())
+    .call(g => g.select(".tick:last-of-type text").clone()
+        .attr("x", 4)
+        .attr("text-anchor", "start")
+        .attr("font-weight", "bold")
+        .text(data.y))
+
+```
+
+:::: {.columns}
+
+::: {.column width="70%"}
+
+Select data for the table on the right (brush)
+
+```{ojs}
+viewof selection = {
+  const svg = d3.create("svg")
+      .attr("viewBox", [0, 0, width, height])
+      .property("value", []);
+
+  const brush = d3.brush()
+      .on("start brush end", brushed);
+
+  svg.append("g")
+      .call(xAxis);
+
+  svg.append("g")
+      .call(yAxis);
+
+  const dot = svg.append("g")
+      .attr("fill", "none")
+      .attr("stroke", "steelblue")
+      .attr("stroke-width", 1.5)
+    .selectAll("circle")
+    .data(data)
+    .join("circle")
+      .attr("transform", d => `translate(${x(d.x)},${y(d.y)})`)
+      .attr("r", 3);
+
+  svg.call(brush);
+
+  function brushed({selection}) {
+    let value = [];
+    if (selection) {
+      const [[x0, y0], [x1, y1]] = selection;
+      value = dot
+        .style("stroke", "gray")
+        .filter(d => x0 <= x(d.x) && x(d.x) < x1 && y0 <= y(d.y) && y(d.y) < y1)
+        .style("stroke", "steelblue")
+        .data();
+    } else {
+      dot.style("stroke", "steelblue");
+    }
+    svg.property("value", value).dispatch("input");
+  }
+
+  return svg.node();
+}
+
+
+```
+
+:::
+
+::: {.column width="30%"}
+
+```{ojs}
+//| output: false
+
+Reactable.setData('tbl', selection)
+
+```
+
+Table with data selected in the scatter plot
+```{r}
+library(reactable)
+
+reactable(
+  df,
+  wrap = F,
+  resizable = T,
+  minRows = 10,
+  elementId = "tbl",
+  sortable = T,
+  # groupBy = "is_fastener",
+  columns = list(
+    # name = colDef(
+    #   width = 100
+    # ),
+    x = colDef(
+      width = 80
+    ),
+    y = colDef(
+      width = 80
+    )
+  ),
+)
+```
+
+:::
+
+::::
+

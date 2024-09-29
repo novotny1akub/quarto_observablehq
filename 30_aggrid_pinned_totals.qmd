@@ -1,0 +1,63 @@
+---
+title: "AG Grid with pinned totals"
+format:
+  html:
+    self-contained: true
+    page-layout: custom
+    theme:
+      - default
+      - 30_custom.scss
+---
+
+```{r include=F}
+
+library(tidyverse)
+
+df <- tibble(
+  product = letters[1:18],
+  value = runif(18)
+)
+
+df_totals <- df %>%
+  summarise(
+    product = "Grand Total:",
+    value = sum(value)
+  )
+
+ojs_define(df = df, df_totals = df_totals)
+
+```
+
+
+```{ojs}
+//| echo: false
+
+AgGrid = require('ag-grid-enterprise/dist/ag-grid-enterprise.js') // also the css in the YAML header!!!
+
+html`<div id="myGrid" style="width: 60%;height:400px;" class="ag-theme-alpine"></div>`
+gridOptions = {
+  const eGridDiv = document.getElementById('myGrid');
+  const columnDefs = [
+    { field: 'product' },
+    { field: 'value' }
+  ];
+
+  const gridOptions = {
+    columnDefs: columnDefs,
+    pinnedTopRowData: transpose(df_totals),
+    rowData: transpose(df),
+    rowSelection: 'single',
+    defaultColDef: {
+      flex: 1,
+      minWidth: 100,
+      resizable: true,
+    },
+  };
+
+  new AgGrid.Grid(eGridDiv, gridOptions);
+  gridOptions.api.sizeColumnsToFit();
+  return gridOptions;
+}
+
+```
+

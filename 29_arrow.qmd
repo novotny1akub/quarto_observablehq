@@ -1,0 +1,23 @@
+---
+title: "Quarto with arrow"
+---
+
+```{r}
+
+arrow::write_feather(
+  mtcars, 
+  "data.arrow", 
+  compression = "uncompressed"
+)
+
+```
+
+
+```{ojs}
+
+data = FileAttachment("data.arrow").arrow()
+
+Inputs.table(data)
+
+```
+

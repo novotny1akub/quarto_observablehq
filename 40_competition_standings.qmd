@@ -1,0 +1,132 @@
+---
+title: "Sales Rep Competition Standings"
+format:
+  html:
+    self-contained: true
+    echo: false
+    warning: false
+    page-layout: custom
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+
+n <- 15
+dummy_names <- crossing(
+  fname = c("Jiri", "Jan", "Petr", "Josef", "Pavel", "Martin", "Jaroslav", "Tomáš", "Miroslav", "Zdeněk"),
+  sname = c("Novák", "Svoboda", "Novotný", "Dvořák", "Černý", "Procházka", "Kučera", "Veselý", "Horák", "Krejčí")
+) %>%
+  transmute(
+    name = paste(fname, sname),
+    team_color = "darkred"
+    ) %>%
+  sample_n(n) %>%
+  mutate(
+    team_logo = paste0("https://i.pravatar.cc/35?img=", row_number()),
+  )
+
+df_data = crossing(
+  season = 2018:2022,
+  team_name = dummy_names$name
+) %>%
+  mutate(
+      rank = runif(n = 5*n)
+  ) %>%
+  arrange(team_name, season) %>%
+  group_by(team_name) %>%
+  mutate(
+    rank = cumsum(rank),
+    first_season = season - min(season) + 1,
+    last_season = abs(season - max(season) -1)
+  ) %>%
+  group_by(season) %>%
+  mutate(rank = rank(rank, ties.method = "first")) %>%
+  ungroup() %>%
+  left_join(dummy_names, by = c("team_name" = "name"))
+
+
+df_firstLastSeason <- df_data %>%
+  group_by(team_name) %>%
+  filter(
+    first_season == max(first_season) | last_season == max(last_season)
+  ) %>%
+  ungroup()
+
+ojs_define(r_data = df_data, r_firstLastSeason = df_firstLastSeason)
+
+```
+
+```{ojs}
+
+import {addTooltips} from "@mkfreeman/plot-tooltip"
+
+viewof accentClubs = Inputs.select(data.map(d => d.team_name), {label: "Select to highlight", unique: true})
+
+data = transpose(r_data)
+
+firstLastSeason = transpose(r_firstLastSeason)
+
+```
+
+
+```{ojs}
+Plot.plot({
+  width:1000,
+  height:600,
+  marginBottom:50,
+  x: {tickSize:0, 
+      tickPadding:25,
+      //adjust domain, add some padding for team text
+      domain: [2016.7,2023.3],
+      ticks: [2018, 2019, 2020, 2021, 2022], 
+      //use to format years
+      tickFormat: d3.format("d"),
+      label:null},
+  y: {label:null, 
+      ticks:false, 
+      reverse:true},
+  marks: [
+    //line charts for all teams, apply bump-x curve to smooth out lines
+    Plot.lineY(data, 
+               {x: "season", 
+                y: "rank", 
+                z: "team_name", 
+                stroke:'#D8DCDC',
+                strokeWidth:3,
+                curve: "bump-x"}),
+        Plot.dot(data, 
+               {x: "season", 
+                y: "rank",
+                fill:'#D8DCDC'}),
+    //line chart just for Brighton and Leicester
+    Plot.lineY(data, 
+               {filter: d => accentClubs.includes(d.team_name),
+                x: "season", 
+                y: "rank", z: 
+                  "team_name", 
+                stroke:'team_color', 
+                strokeWidth:3, 
+                curve: "bump-x"}),
+    //team logos
+    Plot.image(firstLastSeason, {src:"team_logo", height:25, width:25, x:"season", y:"rank"}),
+    //team names starting point
+    Plot.text(firstLastSeason, 
+              {filter: d => d.season===2018,
+               text: d => d.team_name + '  ' + d.rank, 
+               textAnchor: "end", 
+               fontSize:13, 
+               y:"rank",
+               x:2017.85}),
+    //team names ending point
+        Plot.text(firstLastSeason, 
+              {filter: d => d.season===2022,
+               text: d => d.rank + '  ' + d.team_name,
+               textAnchor: "start", 
+               fontSize:13,
+               y:"rank",
+               x:2022.15})
+  ]
+})
+
+```

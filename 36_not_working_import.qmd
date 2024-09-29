@@ -1,0 +1,18 @@
+---
+title: "Data Table Cell"
+format:
+  html:
+    self-contained: true
+---
+
+```{ojs}
+//| echo: false
+
+data = FileAttachment("sales-csv.csv").csv({typed: true})
+import {chart, viewof replay} with {data as data} from "@d3/bar-chart-race"
+
+viewof replay
+chart
+
+```
+

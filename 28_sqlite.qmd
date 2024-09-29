@@ -1,0 +1,22 @@
+---
+title: "Quarto with sqlite database"
+format:
+  html:
+    self-contained: true
+mode: visual
+---
+
+```{ojs}
+
+db = await FileAttachment("sqlite.db").sqlite()
+db.query('SELECT * FROM "table"') // identical to the R query above that works
+
+```
+
+```{ojs}
+
+db2 = await FileAttachment("chinook.db").sqlite()
+db2.query(`SELECT * FROM customers`)
+
+```
+

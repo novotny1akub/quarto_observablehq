@@ -1,0 +1,25 @@
+---
+title: "Quarto with sqlite database"
+format: html
+mode: visual
+---
+
+```{ojs}
+
+
+viewof cat_inp = Inputs.select(["a", "b", "c"], {value: "a"})
+
+db = await FileAttachment("sqlite.db").sqlite()
+db.query(`SELECT * FROM "table" where cat = '${cat_inp}'`) // identical to the R query above that works
+
+db.query('INSERT INTO "table" (cat, num) VALUES ("c", 2)');
+
+
+```
+
+```{ojs}
+DOM.download(async () => new Blob([await db._db.export()]), "sqlite.db")
+```
+
+
+

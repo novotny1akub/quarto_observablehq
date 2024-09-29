@@ -1,0 +1,100 @@
+---
+title: "AG Grid with Sparklines"
+format:
+  html:
+    theme: flatly
+    font: Georgia
+    self-contained: true
+    page-layout: custom
+mode: visual
+---
+
+```{r include=F}
+
+library(tidyverse)
+
+df <- tibble(
+  field = c("field1", "field1", "field2"),
+  product = c("product1", "product2", "product3"),
+  value = c(0.01, 0.5, 0.99),
+  value2 = value %>% map(~.x %>% list())
+)
+
+ojs_define(df = df)
+
+```
+
+
+```{ojs}
+//| echo: false
+
+// https://ag-grid.com/javascript-data-grid/component-cell-renderer/#complementing-cell-renderer-params
+mySparkbar = params => `<div style="
+    background: lightblue;
+    width: ${params.value*100}%;
+    float: right;
+    padding-right: 3px;
+    box-sizing: border-box;
+    overflow: visible;
+    display: flex;
+    justify-content: end;">${params.value.toLocaleString("en")}`;
+
+
+```
+
+
+```{ojs}
+//| echo: false
+
+AgGrid = require('ag-grid-enterprise/dist/ag-grid-enterprise.js') // also the css in the YAML header!!!
+
+html`<div id="myGrid" style="width: 50%;height:400px;" class="ag-theme-alpine"></div>`
+gridOptions = {
+  const eGridDiv = document.getElementById('myGrid');
+  const columnDefs = [
+    { field: 'field', rowGroup: true, hide: true },
+    { field: 'product', maxWidth: 110 },
+    { field: 'value', aggFunc: 'sum', cellRenderer: mySparkbar },
+    {
+      field: 'value2',
+      cellRenderer: 'agSparklineCellRenderer',
+      cellRendererParams: {
+        sparklineOptions: {
+          type: 'bar',
+          fill: '#5470c6',
+          stroke: '#91cc75',
+          highlightStyle: {
+            fill: '#fac858',
+          },
+          valueAxisDomain: [0, 1],
+          paddingOuter: 0,
+          padding: {
+            top: 0,
+            bottom: 0,
+          },
+          axis: {
+            strokeWidth: 0,
+          },
+        },
+      },
+    }
+  ];
+
+  const gridOptions = {
+    columnDefs: columnDefs,
+    rowData: transpose(df),
+    rowSelection: 'single',
+    defaultColDef: {
+      flex: 1,
+      minWidth: 100,
+      resizable: true,
+    },
+  };
+
+  new AgGrid.Grid(eGridDiv, gridOptions);
+  gridOptions.api.sizeColumnsToFit();
+  return gridOptions;
+}
+
+```
+

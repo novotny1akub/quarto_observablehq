@@ -106,11 +106,11 @@ gridOptions = {
   };
 
   new AgGrid.Grid(eGridDiv, gridOptions);
-  gridOptions.api.sizeColumnsToFit();
+  
+  gridOptions.columnApi.autoSizeColumns();
   
   return gridOptions;
 }
 
 
 ```
-

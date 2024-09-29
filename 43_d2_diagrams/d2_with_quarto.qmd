@@ -1,0 +1,21 @@
+---
+title: "D2 Example"
+format: html
+filters:
+  - d2
+d2:
+  format: svg
+  embed_mode: raw
+---
+
+```{.d2 width="40%"}
+x {
+  tooltip: "This is a tooltip"
+}
+y {
+  tooltip: "This is a tooltip"
+}
+x -> y: hi {
+  style.animated: true
+}
+```
